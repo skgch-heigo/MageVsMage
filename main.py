@@ -45,6 +45,7 @@ class Move:
         self.x = 0
         self.y = 0
         self.timer = 0
+        self.fazed = False
         if move_type == "wait":
             self.time = args[0]
         elif move_type == "area_attack":
@@ -63,6 +64,7 @@ class Move:
             self.speed_x = args[3]
             self.speed_y = args[4]
             self.bounce = args[5]
+            self.fazed = args[6]
         self.args = args
 
 
@@ -179,8 +181,13 @@ def start_level(level):
     player.spawn(*START_POINT)
     enemy = enemies[level]
     enemy.spawn(*ENEMY_POINT)
+    black_sq = pygame.sprite.Sprite(information)
+    black_sq.image = pygame.Surface((471, 768))
+    black_sq.image.fill((30, 30, 30))
+    black_sq.rect = black_sq.image.get_rect()
+    black_sq.rect.x = 553
     timer = 0
-    enemy_do = random.choice(enemy_moves[level])
+    enemy_do = random.choice(enemy_moves[level]).copy()
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -190,7 +197,7 @@ def start_level(level):
         if not level_run:
             return  # level ended
         if not enemy_do:
-            enemy_do = random.choice(enemy_moves[level])
+            enemy_do = random.choice(enemy_moves[level]).copy()
         if enemy_do[0].type == "wait":
             if timer < enemy_do[0].time:
                 timer += 1
@@ -205,6 +212,7 @@ def start_level(level):
         screen.blit(level_back, (0, 0))
         all_sprites.update()
         all_sprites.draw(screen)
+        information.draw(screen)
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -241,6 +249,7 @@ clock = pygame.time.Clock()
 
 # группы спрайтов
 all_sprites = pygame.sprite.Group()
+information = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 enemy_bullets = pygame.sprite.Group()
 characters = pygame.sprite.Group()
@@ -292,10 +301,10 @@ enemies = [None, None, Enemy(600, 20000, 500, load_image("game_sprites/sprites_A
                                                     colorkey=(255, 255, 255)))]
 enemy_moves = [[[], [], [], []],
                [[], [], [], []],
-               [[Move("wait", 100) if i % 2 == 1 else
+               [[Move("wait", 10) if i % 2 == 1 else
                  Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
-                      random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30), TOP_F_SPACE,
-                      0, random.randint(1, 4), 0)
+                      random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
+                      -89, 0, random.randint(5, 8), 0, False)
                  for i in range(20)]]]
 
 

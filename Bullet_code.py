@@ -8,13 +8,14 @@ TOP_F_SPACE = 90
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, groups, image, pos_x, pos_y, speed_x, speed_y, bounce, side):
+    def __init__(self, groups, image, pos_x, pos_y, speed_x, speed_y, bounce, fazed, side):
         super().__init__(*[i for i in groups])
         self.image = image
         self.rect = self.image.get_rect()
 
         self.rect.x = pos_x
         self.rect.y = pos_y
+        self.fazed = fazed
 
         self.x = pos_x
         self.y = pos_y
@@ -24,7 +25,23 @@ class Bullet(pygame.sprite.Sprite):
         self.side = side
 
     def update(self, *args):
-       if self.rect.x + self.speed_x
+        if self.fazed:
+            if not (LEFT_F_SPACE < self.rect.x + self.speed_x < LEFT_F_SPACE + FIELD_WIDTH - self.rect.width):
+                self.bounce -= 1
+                self.speed_x *= -1
+            if not (TOP_F_SPACE < self.rect.y + self.speed_y < TOP_F_SPACE + FIELD_HEIGHT - self.rect.height):
+                self.bounce -= 1
+                self.speed_y *= -1
+            self.rect.x += self.speed_x
+            self.rect.y += self.speed_y
+            if self.bounce < 0:
+                self.delete()
+        else:
+            self.rect.x += self.speed_x
+            self.rect.y += self.speed_y
+            if not (-self.rect.width < self.rect.x < LEFT_F_SPACE * 2 + FIELD_WIDTH) or \
+                    not (-self.rect.height < self.rect.y < 768):
+                self.delete()
 
     def delete(self):
         for i in self.groups():
