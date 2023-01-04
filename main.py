@@ -31,16 +31,16 @@ def load_image(name, colorkey=None):
     return image
 
 
-player_image = load_image("спрайты игры/sprits_Фроссин/покой_вперед/покой_вперед.png")
+player_image = load_image("game_sprites/sprites_Frossin/standing_forward/standing_forward1.png")
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos_x, pos_y, speed, max_life, refill_time):
+    def __init__(self, speed, max_life, refill_time):
         super().__init__(characters, all_sprites)
         self.image = player_image
 
-        self.x = pos_x
-        self.y = pos_y
+        self.x = 0
+        self.y = 0
         self.speed = speed
         self.max_life = max_life
         self.refill_time = refill_time
@@ -48,11 +48,17 @@ class Player(pygame.sprite.Sprite):
     def update(self, *args):
         pass
 
+    def spawn(self, pos_x, pos_y):
+        self.x = pos_x
+        self.y = pos_y
+        self.
+
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, pos_x, pos_y, speed, max_life, refill_time, image):
         super().__init__(characters, all_sprites)
         self.image = image
+        self.rect =
 
         self.x = pos_x
         self.y = pos_y
