@@ -31,7 +31,7 @@ def load_image(name, colorkey=None):
     return image
 
 
-player_image = load_image('mario.png')
+player_image = load_image("спрайты игры/sprits_Фроссин/покой_вперед/покой_вперед.png")
 
 
 class Player(pygame.sprite.Sprite):
@@ -120,9 +120,10 @@ def pause():
 
 
 fps = 50
-pygame.display.set_caption("Платформы")
+pygame.display.set_caption("MageVsMage")
 # пикселей в секунду
-screen.fill("black")
+BACKGROUND_COLOR = (61, 61, 61)
+screen.fill(BACKGROUND_COLOR)
 clock = pygame.time.Clock()
 # основной персонаж
 
@@ -137,7 +138,7 @@ running = True
 start_screen()
 while running:
     # menu
-    screen.fill("black")
+    screen.fill(BACKGROUND_COLOR)
     for event in pygame.event.get():
         # при закрытии окна
         if event.type == pygame.QUIT:
