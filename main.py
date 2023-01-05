@@ -79,6 +79,8 @@ class Player(pygame.sprite.Sprite):
         self.frame = 0
         self.image = player_image[self.move + "_" + self.direction][self.frame]
         self.rect = self.image.get_rect()
+        self.rect.width -= 15
+
         self.x = 0
         self.y = 0
         self.speed = speed
@@ -114,11 +116,11 @@ class Player(pygame.sprite.Sprite):
             if self.direction == "right":
                 self.rect.x = min(self.rect.x + self.speed * 2, FIELD_WIDTH + LEFT_F_SPACE - self.rect.width)
             elif self.direction == "left":
-                self.rect.x = min(self.rect.x - self.speed * 2, FIELD_WIDTH + LEFT_F_SPACE - self.rect.width)
+                self.rect.x = max(self.rect.x - self.speed * 2, LEFT_F_SPACE)
             elif self.direction == "forward":
                 self.rect.y = min(self.rect.y + self.speed * 2, FIELD_HEIGHT + TOP_F_SPACE - self.rect.height)
             else:
-                self.rect.y = min(self.rect.y - self.speed * 2, FIELD_HEIGHT + TOP_F_SPACE - self.rect.height)
+                self.rect.y = max(self.rect.y - self.speed * 2, TOP_F_SPACE)
         self.frame += 1
         self.image = player_image[self.move + "_" + self.direction][self.frame // 10 %
                                                                     len(player_image[self.move + "_"
@@ -137,6 +139,7 @@ class Player(pygame.sprite.Sprite):
 
         if self.running <= 0 and self.invulnerable < 0:
             for i in pygame.sprite.spritecollide(self, enemy_bullets, False):
+                pygame.mixer.Sound.play(hit_sound)
                 self.life -= i.damage
                 self.invulnerable = 15
 
@@ -162,6 +165,7 @@ class Enemy(pygame.sprite.Sprite):
     def update(self, *args):
         if not self.shield:
             for i in pygame.sprite.spritecollide(self, player_bullets, True):
+                pygame.mixer.Sound.play(enemy_hit)
                 self.life -= i.damage
 
     def spawn(self, pos_x, pos_y):
@@ -195,7 +199,8 @@ class Shield(pygame.sprite.Sprite):
         self.rect.y = self.y
 
     def update(self):
-        pygame.sprite.spritecollide(self, player_bullets, True)
+        if pygame.sprite.spritecollide(self, player_bullets, True):
+            pygame.mixer.Sound.play(shield_crash)
 
     def delete(self):
         for i in self.groups():
@@ -209,13 +214,15 @@ def terminate():
 
 def start_screen():
     # code
-
+    pygame.mixer.music.load("data/music/main_theme.wav")
+    pygame.mixer.music.play(-1)
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
             elif event.type == pygame.KEYDOWN or \
                     event.type == pygame.MOUSEBUTTONDOWN:
+                pygame.mixer.music.stop()
                 return  # начинаем игру
         pygame.display.flip()
         clock.tick(FPS)
@@ -231,6 +238,8 @@ def level_draw(level):
 
 def start_level(level):
     # level start
+    pygame.mixer.music.load("data/music/battle_theme.wav")
+    pygame.mixer.music.play(-1)
     level_run = True
     level_back = level_draw(level)
     player = Player(*player_stats)
@@ -332,6 +341,10 @@ enemy_bullets = pygame.sprite.Group()
 player_bullets = pygame.sprite.Group()
 characters = pygame.sprite.Group()
 shields = pygame.sprite.Group()
+
+enemy_hit = pygame.mixer.Sound("data/sounds/enemy_hit.wav")
+hit_sound = pygame.mixer.Sound("data/sounds/hit_sound.wav")
+shield_crash = pygame.mixer.Sound("data/sounds/shield_crash.wav")
 
 running = True
 
