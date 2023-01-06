@@ -159,9 +159,10 @@ class Player(pygame.sprite.Sprite):
 
         if self.running <= 0 and self.invulnerable < 0:
             for i in pygame.sprite.spritecollide(self, enemy_bullets, False):
-                pygame.mixer.Sound.play(sounds["hit_sound"])
-                self.life -= i.damage
-                self.invulnerable = 15
+                if not (isinstance(i, Bullet_code.AreaAttack) and i.phase == 0):
+                    pygame.mixer.Sound.play(sounds["hit_sound"])
+                    self.life -= i.damage
+                    self.invulnerable = 15
 
     def spawn(self, pos_x, pos_y):
         self.x = pos_x
@@ -326,7 +327,8 @@ def start_level(level):
                 del enemy_do[0]
                 timer = 0
         elif enemy_do[0].type == "area_attack":
-            pass
+            Bullet_code.AreaAttack((all_sprites, bullets, enemy_bullets), *enemy_do[0].args, "enemy")
+            del enemy_do[0]
         elif enemy_do[0].type == "bullet":
             Bullet_code.Bullet((all_sprites, bullets, enemy_bullets), *enemy_do[0].args, "enemy")
             del enemy_do[0]
@@ -511,7 +513,12 @@ enemy_moves = [[Move("wait", 5) if i % 2 == 1 else
                 Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
                      random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
                      -89, 0, random.randint(5, 8), 0, False, 10)
-                for i in range(120)]]
+                for i in range(120)], [Move("wait", 50) if i % 2 == 1 else
+                                       Move("area_attack", load_image("game_sprites/area/lazer_prep.png"),
+                                            load_image("game_sprites/area/lazer.png"), 0,
+                                            HEIGHT if i % 4 == 0 else -180,
+                                            0, -8 if i % 4 == 0 else 8, 120, 50, 10)
+                                       for i in range(10)]]
 
 while running:
     # menu

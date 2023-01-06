@@ -58,6 +58,8 @@ class AreaAttack(pygame.sprite.Sprite):
 
         self.x = pos_x
         self.y = pos_y
+        self.rect.x = self.x
+        self.rect.y = self.y
         self.speed_x = speed_x
         self.speed_y = speed_y
         self.timer = timer
@@ -74,6 +76,8 @@ class AreaAttack(pygame.sprite.Sprite):
             self.phase = 1
         if self.time_now >= self.timer:
             self.delete()
+        self.rect.x += self.speed_x
+        self.rect.y += self.speed_y
 
     def delete(self):
         for i in self.groups():
