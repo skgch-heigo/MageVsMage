@@ -5,7 +5,7 @@ import os
 import pygame
 
 import Bullet_code
-
+from image_code import player_image_load, load_image, health_bar_load
 
 pygame.init()
 
@@ -15,21 +15,32 @@ screen = pygame.display.set_mode(size)
 FPS = 50
 
 
-def load_image(name, colorkey=None):
-    fullname = os.path.join('data', name)
-    # если файл не существует, то выходим
-    if not os.path.isfile(fullname):
-        print(f"Файл с изображением '{fullname}' не найден")
-        sys.exit()
-    image = pygame.image.load(fullname)
-    if colorkey is not None:
-        image = image.convert()
-        if colorkey == -1:
-            colorkey = image.get_at((0, 0))
-        image.set_colorkey(colorkey)
-    else:
-        image = image.convert_alpha()
-    return image
+def blit_text(surface, text, pos, width, the_font, color=pygame.Color((0, 0, 0))):
+    words = [word.split(' ') for word in text.splitlines()]  # 2D array where each row is a list of words.
+    space = the_font.size(' ')[0]  # The width of a space.
+    max_width = width
+    x, y = pos
+    word_height = 0
+    for line in words:
+        for word in line:
+            word_surface = the_font.render(word, 0, color)
+            word_width, word_height = word_surface.get_size()
+            if x + word_width >= max_width:
+                x = pos[0]  # Reset the x.
+                y += word_height  # Start on new row.
+            surface.blit(word_surface, (x, y))
+            x += word_width + space
+        x = pos[0]  # Reset the x.
+        y += word_height  # Start on new row.
+
+
+def draw_health_bar(health):
+    surf = pygame.Surface(((len(str(health)) + 1) * 30, 30))
+    surf.fill(BACKGROUND_COLOR)
+    surf.blit(nums[10], (0, 0))
+    for i in range(len(str(health))):
+        surf.blit(nums[int(str(health)[i])], ((i + 1) * 30, 0))
+    return surf
 
 
 class Move:
@@ -68,6 +79,15 @@ class Move:
         else:
             self.time = args[0]
         self.args = args
+
+
+class PauseButton(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__(all_sprites, information)
+        self.image = load_image("game_sprites/additional/pause.png")
+        self.rect = self.image.get_rect()
+        self.rect.x = WIDTH - 65
+        self.rect.y = 5
 
 
 class Player(pygame.sprite.Sprite):
@@ -129,7 +149,7 @@ class Player(pygame.sprite.Sprite):
             if self.last_attack > 15:
                 self.last_attack = 0
                 Bullet_code.Bullet((all_sprites, player_bullets), load_image("game_sprites/bullets/player_attack.png"),
-                                   self.rect.x, self.rect.y, 0, -10, 0, True, 20, "player")
+                                   self.rect.x, self.rect.y, 0, -10, 0, True, 10, "player")
 
         if pygame.key.get_pressed()[pygame.K_SPACE]:
             if self.running < -15:
@@ -139,7 +159,7 @@ class Player(pygame.sprite.Sprite):
 
         if self.running <= 0 and self.invulnerable < 0:
             for i in pygame.sprite.spritecollide(self, enemy_bullets, False):
-                pygame.mixer.Sound.play(hit_sound)
+                pygame.mixer.Sound.play(sounds["hit_sound"])
                 self.life -= i.damage
                 self.invulnerable = 15
 
@@ -165,7 +185,7 @@ class Enemy(pygame.sprite.Sprite):
     def update(self, *args):
         if not self.shield:
             for i in pygame.sprite.spritecollide(self, player_bullets, True):
-                pygame.mixer.Sound.play(enemy_hit)
+                pygame.mixer.Sound.play(sounds["enemy_hit"])
                 self.life -= i.damage
 
     def spawn(self, pos_x, pos_y):
@@ -200,7 +220,7 @@ class Shield(pygame.sprite.Sprite):
 
     def update(self):
         if pygame.sprite.spritecollide(self, player_bullets, True):
-            pygame.mixer.Sound.play(shield_crash)
+            pygame.mixer.Sound.play(sounds["shield_crash"])
 
     def delete(self):
         for i in self.groups():
@@ -216,14 +236,40 @@ def start_screen():
     # code
     pygame.mixer.music.load("data/music/main_theme.wav")
     pygame.mixer.music.play(-1)
+    btn = load_image("game_sprites/additional/button.png")
+
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.KEYDOWN or \
-                    event.type == pygame.MOUSEBUTTONDOWN:
-                pygame.mixer.music.stop()
-                return  # начинаем игру
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
+                        HEIGHT // 2 < event.pos[1] < HEIGHT // 2 + btn.get_height():
+                    return  # начинаем игру
+                if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
+                        HEIGHT // 2 + btn.get_height() + 10 < event.pos[1] < \
+                        HEIGHT // 2 + btn.get_height() * 2 + 10:
+                    settings()
+                if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
+                        HEIGHT // 2 + btn.get_height() * 2 + 20 < event.pos[1] < \
+                        HEIGHT // 2 + btn.get_height() * 3 + 20:
+                    terminate()
+        if lang == EN:
+            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE)
+        else:
+            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE)
+        screen.fill(BACKGROUND_COLOR)
+        screen.blit(btn, (WIDTH // 2 - btn.get_width() // 2, HEIGHT // 2))
+        screen.blit(btn, (WIDTH // 2 - btn.get_width() // 2, HEIGHT // 2 + btn.get_height() + 10))
+        screen.blit(btn, (WIDTH // 2 - btn.get_width() // 2, HEIGHT // 2 + btn.get_height() * 2 + 20))
+        text = font.render(text_data[lang]["start"], False, TEXT_COLOR)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 + 45 - text.get_height() // 2))
+        text = font.render(text_data[lang]["settings"], False, TEXT_COLOR)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 + btn.get_height() * 1.5 +
+                           10 - text.get_height() // 2))
+        text = font.render(text_data[lang]["exit"], False, TEXT_COLOR)
+        screen.blit(text, (WIDTH // 2 - text.get_width() // 2, HEIGHT // 2 + btn.get_height() * 2 +
+                           20 + btn.get_height() // 2 - text.get_height() // 2))
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -257,12 +303,16 @@ def start_level(level):
     enemy_do.append(Move("wait", 250))
     shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                     load_image("game_sprites/additional/shield.png"))
+    pause_btn = PauseButton()
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 pause()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
+                    pause()
         if not level_run:
             return  # level ended
         if not enemy_do:
@@ -294,23 +344,108 @@ def start_level(level):
                                 load_image("game_sprites/additional/shield.png"))
 
         screen.blit(level_back, (0, 0))
+        screen.blit(draw_health_bar(enemy.life), (5, 5))
+        screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
         all_sprites.update()
         all_sprites.draw(screen)
         shields.draw(screen)
         information.draw(screen)
         pygame.display.flip()
-        print(player.life, enemy.life)
         clock.tick(FPS)
 
 
 def pause():
     # paused game menu
+    pygame.mixer.music.load("data/music/main_theme.wav")
+    pygame.mixer.music.play(-1)
+    screen.blit(load_image("game_sprites/additional/continue.png"), (482, 354))
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    return  # return from pause
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pygame.mixer.music.load("data/music/battle_theme.wav")
+                pygame.mixer.music.play(-1)
+                return  # return from pause
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                if 482 < event.pos[0] <= 542 and 354 < event.pos[1] <= 414:
+                    pygame.mixer.music.load("data/music/battle_theme.wav")
+                    pygame.mixer.music.play(-1)
+                    return
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def settings():
+    global lang, sound, volume
+    en_image = load_image("game_sprites/additional/en.png")
+    not_en_image = load_image("game_sprites/additional/not_en.png")
+    ru_image = load_image("game_sprites/additional/ru.png")
+    not_ru_image = load_image("game_sprites/additional/not_ru.png")
+    exit_image = load_image("game_sprites/additional/exit.png")
+    not_loud = load_image("game_sprites/additional/not_loudness.png")
+    loud = load_image("game_sprites/additional/loudness.png")
+    while True:
+        screen.fill(BACKGROUND_COLOR)
+        screen.blit(exit_image, (20, 20))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                return  # return from pause
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                if 20 < event.pos[0] <= 20 + exit_image.get_width() and \
+                        20 < event.pos[1] <= 20 + exit_image.get_height():
+                    return
+                if WIDTH // 2 - 100 - en_image.get_width() < event.pos[0] <= WIDTH // 2 - 100 and \
+                        HEIGHT // 2 - 200 < event.pos[1] <= HEIGHT // 2 - 200 + en_image.get_height():
+                    lang = EN
+                if WIDTH // 2 + 100 < event.pos[0] <= WIDTH // 2 + 100 + en_image.get_width() and \
+                        HEIGHT // 2 - 200 < event.pos[1] <= HEIGHT // 2 - 200 + en_image.get_height():
+                    lang = RU
+                for i in range(5):
+                    if WIDTH // 2 - loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10) < event.pos[0] <= \
+                            WIDTH // 2 + loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10) and \
+                            HEIGHT // 2 < event.pos[1] <= HEIGHT // 2 + loud.get_height():
+                        volume = i
+                        pygame.mixer.music.set_volume(volume * 0.2)
+                for i in range(5):
+                    if WIDTH // 2 - loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10) < event.pos[0] <= \
+                            WIDTH // 2 + loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10) and \
+                            HEIGHT // 2 + 100 < event.pos[1] <= HEIGHT // 2 + 100 + loud.get_height():
+                        sound = i
+                        for j in sounds:
+                            sounds[j].set_volume(sound * 0.25)
+        if lang == EN:
+            screen.blit(en_image, (WIDTH // 2 - 100 - en_image.get_width(), HEIGHT // 2 - 200))
+            screen.blit(not_ru_image, (WIDTH // 2 + 100, HEIGHT // 2 - 200))
+        else:
+            screen.blit(not_en_image, (WIDTH // 2 - 100 - en_image.get_width(), HEIGHT // 2 - 200))
+            screen.blit(ru_image, (WIDTH // 2 + 100, HEIGHT // 2 - 200))
+        if lang == EN:
+            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE)
+        else:
+            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE)
+        text = font.render(text_data[lang]["volume"], False, TEXT_COLOR)
+        screen.blit(text, (WIDTH // 2 - loud.get_width() // 2 - 2 * (loud.get_width() + 10),
+                           HEIGHT // 2 - 55))
+        text = font.render(text_data[lang]["sound"], False, TEXT_COLOR)
+        screen.blit(text, (WIDTH // 2 - loud.get_width() // 2 - 2 * (loud.get_width() + 10),
+                           HEIGHT // 2 + 45))
+        for i in range(5):
+            if volume == i:
+                screen.blit(loud, (WIDTH // 2 - loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10),
+                                   HEIGHT // 2))
+            else:
+                screen.blit(not_loud, (WIDTH // 2 - loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10),
+                                       HEIGHT // 2))
+        for i in range(5):
+            if sound == i:
+                screen.blit(loud, (WIDTH // 2 - loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10),
+                                   HEIGHT // 2 + 100))
+            else:
+                screen.blit(not_loud, (WIDTH // 2 - loud.get_width() // 2 + (i - 2) * (loud.get_width() + 10),
+                                       HEIGHT // 2 + 100))
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -321,13 +456,24 @@ pygame.display.set_caption("MageVsMage")
 
 
 BACKGROUND_COLOR = (61, 61, 61)
+TEXT_COLOR = (10, 10, 10)
 START_POINT = (260, 500)
 ENEMY_POINT = (260, 130)
 FIELD_WIDTH = 453
 FIELD_HEIGHT = 588
 LEFT_F_SPACE = 50
 TOP_F_SPACE = 90
+FONT_SIZE = 40
 
+text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "volume": "Music volume",
+              "sound": "Sound volume"},
+             {"start": "Начать игру", "settings": "Настройки", "exit": "Выход", "volume": "Громкость музыки",
+              "sound": "Громкость звука"}]
+EN = 0
+RU = 1
+volume = 2
+sound = 2
+lang = EN
 
 screen.fill(BACKGROUND_COLOR)
 clock = pygame.time.Clock()
@@ -342,60 +488,30 @@ player_bullets = pygame.sprite.Group()
 characters = pygame.sprite.Group()
 shields = pygame.sprite.Group()
 
-enemy_hit = pygame.mixer.Sound("data/sounds/enemy_hit.wav")
-hit_sound = pygame.mixer.Sound("data/sounds/hit_sound.wav")
-shield_crash = pygame.mixer.Sound("data/sounds/shield_crash.wav")
+sounds = {
+    "enemy_hit": pygame.mixer.Sound("data/sounds/enemy_hit.wav"),
+    "hit_sound": pygame.mixer.Sound("data/sounds/hit_sound.wav"),
+    "shield_crash": pygame.mixer.Sound("data/sounds/shield_crash.wav")}
 
 running = True
 
+pygame.mixer.music.set_volume(volume * 0.25)
+for i in sounds:
+    sounds[i].set_volume(sound * 0.25)
 start_screen()
 # change if other character was selected
-player_image = {"standing_forward":
-                    [load_image(f"game_sprites/sprites_Frossin/standing_forward/standing_forward{i}.png")
-                     for i in range(1, 3)],
-                "standing_backward":
-                    [load_image(f"game_sprites/sprites_Frossin/standing_backward/standing_backward{i}.png")
-                     for i in range(1, 3)],
-                "standing_left":
-                    [load_image(f"game_sprites/sprites_Frossin/standing_left/standing_left{i}.png")
-                     for i in range(1, 3)],
-                "standing_right":
-                    [load_image(f"game_sprites/sprites_Frossin/standing_right/standing_right{i}.png")
-                     for i in range(1, 3)],
-                "walking_forward":
-                    [load_image(f"game_sprites/sprites_Frossin/walking_forward/walking_forward{i}.png")
-                     for i in range(1, 5)],
-                "walking_backward":
-                    [load_image(f"game_sprites/sprites_Frossin/walking_forward/walking_forward{i}.png")
-                     for i in range(1, 5)],
-                "walking_left":
-                    [load_image(f"game_sprites/sprites_Frossin/walking_left/walking_left{i}.png")
-                     for i in range(1, 10)],
-                "walking_right":
-                    [load_image(f"game_sprites/sprites_Frossin/walking_right/walking_right{i}.png")
-                     for i in range(1, 10)],
-                "run_forward":
-                    [load_image(f"game_sprites/sprites_Frossin/run_forward/run_forward{i}.png")
-                     for i in range(1, 9)],
-                "run_backward":
-                    [load_image(f"game_sprites/sprites_Frossin/run_forward/run_forward{i}.png")
-                     for i in range(1, 9)],
-                "run_left":
-                    [load_image(f"game_sprites/sprites_Frossin/run_left/run_left{i}.png")
-                     for i in range(1, 14)],
-                "run_right":
-                    [load_image(f"game_sprites/sprites_Frossin/run_right/run_right{i}.png")
-                     for i in range(1, 14)]}
+
+player_image = player_image_load()
+nums = health_bar_load()
 
 player_stats = (3, 100)
 enemies = Enemy(600, 500, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
-                                                    colorkey=(255, 255, 255)))
+                                     colorkey=(255, 255, 255)))
 enemy_moves = [[Move("wait", 5) if i % 2 == 1 else
-                 Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
-                      random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
-                      -89, 0, random.randint(5, 8), 0, False, 10)
-                 for i in range(120)]]
-
+                Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
+                     random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
+                     -89, 0, random.randint(5, 8), 0, False, 10)
+                for i in range(120)]]
 
 while running:
     # menu
