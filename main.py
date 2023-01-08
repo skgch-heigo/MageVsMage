@@ -220,7 +220,6 @@ class Player(pygame.sprite.Sprite):
 
     def spawn(self, pos_x, pos_y):
         self.rect = self.image.get_rect()
-        self.rect.width -= 15
         self.x = pos_x
         self.y = pos_y
         self.rect.x = pos_x
