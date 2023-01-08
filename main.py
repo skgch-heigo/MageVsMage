@@ -23,15 +23,71 @@ def blit_text(surface, text, pos, width, the_font, color=pygame.Color((0, 0, 0))
     word_height = 0
     for line in words:
         for word in line:
-            word_surface = the_font.render(word, 0, color)
+            if len(word) > 5 and word.startswith("<") and word.endswith(">"):
+                word_surface = the_font.render(word[2:-2], 0, special_symbol[word[1]])
+            else:
+                word_surface = the_font.render(word, 0, color)
             word_width, word_height = word_surface.get_size()
-            if x + word_width >= max_width:
+            if x + word_width >= max_width + pos[0]:
                 x = pos[0]  # Reset the x.
                 y += word_height  # Start on new row.
             surface.blit(word_surface, (x, y))
             x += word_width + space
         x = pos[0]  # Reset the x.
         y += word_height  # Start on new row.
+
+
+def battle_engine(level_back, enemy, player):
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            terminate()
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+            pause()
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+            if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
+                pause()
+    screen.blit(level_back, (0, 0))
+    screen.blit(draw_health_bar(enemy.life), (5, 5))
+    screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+    all_sprites.update()
+    all_sprites.draw(screen)
+    shields.draw(screen)
+    information.draw(screen)
+    pygame.display.flip()
+    clock.tick(fps)
+
+
+def blit_timed(surface, text, pos, width, the_font, level_back, enemy, player, color=pygame.Color((0, 0, 0)), wait=1):
+    time = 0
+    words = [word.split(' ') for word in text.splitlines()]  # 2D array where each row is a list of words.
+    space = the_font.size(' ')[0]  # The width of a space.
+    max_width = width
+    x, y = pos
+    word_height = 0
+    for line in words:
+        for word in line:
+            if word == "$":
+                for _ in range(50):
+                    battle_engine(level_back, enemy, player)
+            else:
+                if len(word) > 5 and word.startswith("<") and word.endswith(">"):
+                    word_surface = the_font.render(word[2:-2], 0, special_symbol[word[1]])
+                else:
+                    word_surface = the_font.render(word, 0, color)
+                word_width, word_height = word_surface.get_size()
+                if x + word_width >= max_width + pos[0]:
+                    x = pos[0]  # Reset the x.
+                    y += word_height  # Start on new row.
+                while time % (fps // wait) != 0:
+                    time += 1
+                    battle_engine(level_back, enemy, player)
+                time += 1
+                surface.blit(word_surface, (x, y))
+                x += word_width + space
+        x = pos[0]  # Reset the x.
+        y += word_height + 2  # Start on new row.
+    for _ in range(150):
+        battle_engine(level_back, enemy, player)
 
 
 def draw_health_bar(health):
@@ -98,7 +154,6 @@ class Player(pygame.sprite.Sprite):
         self.running = 0
         self.frame = 0
         self.image = player_image[self.move + "_" + self.direction][self.frame]
-        self.rect = self.image.get_rect()
 
         self.x = 0
         self.y = 0
@@ -160,21 +215,25 @@ class Player(pygame.sprite.Sprite):
             for i in pygame.sprite.spritecollide(self, enemy_bullets, False):
                 if not (isinstance(i, Bullet_code.AreaAttack) and i.phase == 0):
                     pygame.mixer.Sound.play(sounds["hit_sound"])
-                    self.life -= i.damage
+                    self.life = max(self.life - i.damage, 0)
                     self.invulnerable = 15
 
     def spawn(self, pos_x, pos_y):
+        self.rect = self.image.get_rect()
+        self.rect.width -= 15
         self.x = pos_x
         self.y = pos_y
         self.rect.x = pos_x
         self.rect.y = pos_y
+
+    def copy(self):
+        return Player(self.speed, self.max_life)
 
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, max_life, open_time, image):
         super().__init__(characters, all_sprites)
         self.image = image
-        self.rect = self.image.get_rect()
         self.open_time = open_time
         self.x = 0
         self.y = 0
@@ -186,13 +245,17 @@ class Enemy(pygame.sprite.Sprite):
         if not self.shield:
             for i in pygame.sprite.spritecollide(self, player_bullets, True):
                 pygame.mixer.Sound.play(sounds["enemy_hit"])
-                self.life -= i.damage
+                self.life = max(self.life - i.damage, 0)
 
     def spawn(self, pos_x, pos_y):
+        self.rect = self.image.get_rect()
         self.x = pos_x
         self.y = pos_y
         self.rect.x = pos_x
         self.rect.y = pos_y
+
+    def copy(self):
+        return Enemy(self.max_life, self.open_time, self.image)
 
 
 class Information(pygame.sprite.Sprite):
@@ -245,7 +308,7 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
                         HEIGHT // 2 < event.pos[1] < HEIGHT // 2 + btn.get_height():
-                    return  # начинаем игру
+                    start_level(0)
                 if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
                         HEIGHT // 2 + btn.get_height() + 10 < event.pos[1] < \
                         HEIGHT // 2 + btn.get_height() * 2 + 10:
@@ -255,9 +318,9 @@ def start_screen():
                         HEIGHT // 2 + btn.get_height() * 3 + 20:
                     terminate()
         if lang == EN:
-            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE)
+            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
         else:
-            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE)
+            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
         screen.fill(BACKGROUND_COLOR)
         screen.blit(btn, (WIDTH // 2 - btn.get_width() // 2, HEIGHT // 2))
         screen.blit(btn, (WIDTH // 2 - btn.get_width() // 2, HEIGHT // 2 + btn.get_height() + 10))
@@ -290,20 +353,35 @@ def start_level(level):
     level_back = level_draw(level)
     player = Player(*player_stats)
     player.spawn(*START_POINT)
-    enemy = enemies
+    enemy = Enemy(*enemies[0])
     enemy.spawn(*ENEMY_POINT)
-    black_sq = pygame.sprite.Sprite(information)
+    black_sq = pygame.sprite.Sprite(all_sprites, information)
     black_sq.image = pygame.Surface((471, 768))
     black_sq.image.fill((30, 30, 30))
     black_sq.rect = black_sq.image.get_rect()
     black_sq.rect.x = 553
     timer = 0
-    enemy_do = random.choice(enemy_moves).copy()
+    enemy_do = [Move("wait", 250)]
+    enemy_do.extend(random.choice(enemy_moves).copy())
     enemy_do.append(Move("unshield", 250))
     enemy_do.append(Move("wait", 250))
     shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                     load_image("game_sprites/additional/shield.png"))
     pause_btn = PauseButton()
+    save_inf = (player.life, enemy.life)
+    if lang == EN:
+        font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
+    else:
+        font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU_MINI)
+    screen.blit(level_back, (0, 0))
+    screen.blit(draw_health_bar(enemy.life), (5, 5))
+    screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+    all_sprites.draw(screen)
+    shields.draw(screen)
+    information.draw(screen)
+    pygame.display.flip()
+    blit_timed(black_sq.image, text_data[lang]["tutorial"], (20, 100), 351, font,
+               level_back, enemy, player, BATTLE_TEXT, wait=5)
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -316,6 +394,7 @@ def start_level(level):
         if not level_run:
             return  # level ended
         if not enemy_do:
+            save_inf = (player.life, enemy.life)
             enemy_do = random.choice(enemy_moves).copy()
             enemy_do.append(Move("unshield", 250))
             enemy_do.append(Move("wait", 250))
@@ -344,6 +423,16 @@ def start_level(level):
                 shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                                 load_image("game_sprites/additional/shield.png"))
 
+        if enemy.life <= 0:
+            you_won()
+        if player.life <= 0:
+            you_lost()
+            player.life, enemy.life = save_inf
+            enemy_do = [Move("unshield", 250), Move("wait", 250)]
+            enemy_do.extend(random.choice(enemy_moves).copy())
+            enemy_do.append(Move("unshield", 250))
+            enemy_do.append(Move("wait", 250))
+
         screen.blit(level_back, (0, 0))
         screen.blit(draw_health_bar(enemy.life), (5, 5))
         screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
@@ -351,6 +440,76 @@ def start_level(level):
         all_sprites.draw(screen)
         shields.draw(screen)
         information.draw(screen)
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def you_won():
+    pygame.mixer.music.load("data/music/main_theme.wav")
+    pygame.mixer.music.play(-1)
+    if lang == EN:
+        font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
+    else:
+        font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
+    while True:
+        screen.fill(BACKGROUND_COLOR)
+        blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        text1 = pygame.Surface((100, 50))
+        text1.fill(BACKGROUND_COLOR)
+        blit_text(text1, text_data[lang]["no_r"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
+        text2 = pygame.Surface((100, 50))
+        text2.fill(BACKGROUND_COLOR)
+        blit_text(text2, text_data[lang]["yes_r"], (0, 0), text2.get_width(), font, BATTLE_TEXT)
+        screen.blit(text1, (WIDTH // 2 - 150, int(HEIGHT * 0.9)))
+        screen.blit(text2, (WIDTH // 2 + 50, int(HEIGHT * 0.9)))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                if WIDTH // 2 - 150 < event.pos[0] <= WIDTH // 2 - 50 and \
+                        int(HEIGHT * 0.9) < event.pos[1] <= int(HEIGHT * 0.9) + 50:
+                    for i in all_sprites:
+                        i.kill()
+                    start_screen()
+                if WIDTH // 2 + 50 < event.pos[0] <= WIDTH // 2 + 150 and \
+                        int(HEIGHT * 0.9) < event.pos[1] <= int(HEIGHT * 0.9) + 50:
+                    terminate()
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def you_lost():
+    for i in bullets:
+        i.kill()
+    pygame.mixer.music.load("data/music/main_theme.wav")
+    pygame.mixer.music.play(-1)
+    if lang == EN:
+        font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
+    else:
+        font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
+    while True:
+        screen.fill(BACKGROUND_COLOR)
+        blit_text(screen, text_data[lang]["you_lost"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        text1 = pygame.Surface((100, 50))
+        text1.fill(BACKGROUND_COLOR)
+        blit_text(text1, text_data[lang]["yes"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
+        text2 = pygame.Surface((100, 50))
+        text2.fill(BACKGROUND_COLOR)
+        blit_text(text2, text_data[lang]["no"], (0, 0), text2.get_width(), font, BATTLE_TEXT)
+        screen.blit(text1, (WIDTH // 2 - 150, int(HEIGHT * 0.9)))
+        screen.blit(text2, (WIDTH // 2 + 50, int(HEIGHT * 0.9)))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                if WIDTH // 2 - 150 < event.pos[0] <= WIDTH // 2 - 50 and \
+                        int(HEIGHT * 0.9) < event.pos[1] <= int(HEIGHT * 0.9) + 50:
+                    pygame.mixer.music.load("data/music/battle_theme.wav")
+                    pygame.mixer.music.play(-1)
+                    return
+                if WIDTH // 2 + 50 < event.pos[0] <= WIDTH // 2 + 150 and \
+                        int(HEIGHT * 0.9) < event.pos[1] <= int(HEIGHT * 0.9) + 50:
+                    terminate()
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -424,9 +583,9 @@ def settings():
             screen.blit(not_en_image, (WIDTH // 2 - 100 - en_image.get_width(), HEIGHT // 2 - 200))
             screen.blit(ru_image, (WIDTH // 2 + 100, HEIGHT // 2 - 200))
         if lang == EN:
-            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE)
+            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
         else:
-            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE)
+            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
         text = font.render(text_data[lang]["volume"], False, TEXT_COLOR)
         screen.blit(text, (WIDTH // 2 - loud.get_width() // 2 - 2 * (loud.get_width() + 10),
                            HEIGHT // 2 - 55))
@@ -458,18 +617,50 @@ pygame.display.set_caption("MageVsMage")
 
 BACKGROUND_COLOR = (61, 61, 61)
 TEXT_COLOR = (10, 10, 10)
+BATTLE_TEXT = (240, 240, 240)
 START_POINT = (260, 500)
 ENEMY_POINT = (260, 130)
 FIELD_WIDTH = 453
 FIELD_HEIGHT = 588
 LEFT_F_SPACE = 50
 TOP_F_SPACE = 90
-FONT_SIZE = 40
+FONT_SIZE_EN = 40
+FONT_SIZE_RU = 30
+FONT_SIZE_EN_MINI = 20
+FONT_SIZE_RU_MINI = 15
+
+special_symbol = {"@": (181, 6, 0),  # bloody color
+                  "!": (235, 179, 57),  # golden
+                  }
 
 text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "volume": "Music volume",
-              "sound": "Sound volume"},
+              "sound": "Sound volume", "you_lost": "You <@lost.@> Try again?",
+              "you_won": "You <!won.> But is it the <!end?!>", "yes": "<!Yes!>", "no": "<@No@>",
+              "yes_r": "<@Yes@>", "no_r": "<!No!>",
+
+              "tutorial": "<@Hahaha,@> you somehow forgot how to move? $ So pathetic. $\nThen I should tell you that" +
+                          " you move with <!WASD.!> $ Try it out, $ it shouldn't " +
+                          "be that hard even for someone like you. $" +
+                          "\nAs you are pretty stupid, $ I think I should also remind you that you can dash with "
+                          "<!space.!> $ This will help you not to get <@damage.@> $ " +
+                          "After all, $ I want this fight to be <@amusing.@> $ $\n\nAh, $ of course, $ don't forget " +
+                          "you can fight back with <!E.!> $ Thought that's pretty <@useless,@> $ don't you think?"},
+
              {"start": "Начать игру", "settings": "Настройки", "exit": "Выход", "volume": "Громкость музыки",
-              "sound": "Громкость звука"}]
+              "sound": "Громкость звука", "you_lost": "Вы <@проиграли.@> Попытаться вновь?",
+              "you_won": "Вы <!победили.!> Но достигли ли вы <!конца?!>", "yes": "<!Да!>", "no": "<@Нет@>",
+              "yes_r": "<@Да@>", "no_r": "<!Нет!>",
+
+              "tutorial": "<@Хахаха,@> ты как-то разучился двигаться? $ Такой жалкий. $" +
+                          "\nТогда я должен сказать, что ты можешь двигаться с помощью <!WASD.!> $ " +
+                          "Попробуй, $ это не должно быть так сложно даже для таких, как ты. $" +
+                          "\nПоскольку ты довольно глуп, $ я думаю, я должен также напомнить тебе, " +
+                          "что ты можешь делать рывки с помощью <!пробела.!> " +
+                          "$ Это поможет тебе не получать <@урон.@> $ " +
+                          "В конце концов, $ я хочу, чтобы этот бой был <@забавным.@> $ $" +
+                          "\n\nАх, $ конечно, $ не забывай, " +
+                          "ты можете дать отпор с помощью <!E.!> $ Правда, это довольно <@бесполезно,@> $ не так ли?"
+              }]
 EN = 0
 RU = 1
 volume = 2
@@ -499,15 +690,16 @@ running = True
 pygame.mixer.music.set_volume(volume * 0.25)
 for i in sounds:
     sounds[i].set_volume(sound * 0.25)
-start_screen()
+
 # change if other character was selected
 
 player_image = player_image_load()
 nums = health_bar_load()
 
 player_stats = (3, 100)
-enemies = Enemy(600, 500, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
-                                     colorkey=(255, 255, 255)))
+enemies = [(600, 500, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
+                                colorkey=(255, 255, 255)))]
+
 enemy_moves = [[Move("wait", 5) if i % 2 == 1 else
                 Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
                      random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
@@ -519,16 +711,6 @@ enemy_moves = [[Move("wait", 5) if i % 2 == 1 else
                                             0, -8 if i % 4 == 0 else 8, 120, 50, 10)
                                        for i in range(10)]]
 
-while running:
-    # menu
-    screen.fill(BACKGROUND_COLOR)
-    for event in pygame.event.get():
-        # при закрытии окна
-        if event.type == pygame.QUIT:
-            running = False
-    start_level(2)
-    all_sprites.update()
-    all_sprites.draw(screen)
-    pygame.display.flip()
-    clock.tick(fps)
+start_screen()
+
 pygame.quit()
