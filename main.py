@@ -23,9 +23,12 @@ def blit_text(surface, text, pos, width, the_font, color=pygame.Color((0, 0, 0))
     word_height = 0
     for line in words:
         for word in line:
-            word_surface = the_font.render(word, 0, color)
+            if len(word) > 5 and word.startswith("<") and word.endswith(">"):
+                word_surface = the_font.render(word[2:-2], 0, special_symbol[word[1]])
+            else:
+                word_surface = the_font.render(word, 0, color)
             word_width, word_height = word_surface.get_size()
-            if x + word_width >= max_width:
+            if x + word_width >= max_width + pos[0]:
                 x = pos[0]  # Reset the x.
                 y += word_height  # Start on new row.
             surface.blit(word_surface, (x, y))
@@ -161,7 +164,7 @@ class Player(pygame.sprite.Sprite):
             for i in pygame.sprite.spritecollide(self, enemy_bullets, False):
                 if not (isinstance(i, Bullet_code.AreaAttack) and i.phase == 0):
                     pygame.mixer.Sound.play(sounds["hit_sound"])
-                    self.life -= i.damage
+                    self.life = max(self.life - i.damage, 0)
                     self.invulnerable = 15
 
     def spawn(self, pos_x, pos_y):
@@ -187,7 +190,7 @@ class Enemy(pygame.sprite.Sprite):
         if not self.shield:
             for i in pygame.sprite.spritecollide(self, player_bullets, True):
                 pygame.mixer.Sound.play(sounds["enemy_hit"])
-                self.life -= i.damage
+                self.life = max(self.life - i.damage, 0)
 
     def spawn(self, pos_x, pos_y):
         self.x = pos_x
@@ -345,6 +348,11 @@ def start_level(level):
                 shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                                 load_image("game_sprites/additional/shield.png"))
 
+        if enemy.life <= 0:
+            you_won()
+        if player.life <= 0:
+            you_lost()
+
         screen.blit(level_back, (0, 0))
         screen.blit(draw_health_bar(enemy.life), (5, 5))
         screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
@@ -352,6 +360,54 @@ def start_level(level):
         all_sprites.draw(screen)
         shields.draw(screen)
         information.draw(screen)
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def you_won():
+    pygame.mixer.music.load("data/music/main_theme.wav")
+    pygame.mixer.music.play(-1)
+    all_sprites.empty()
+    information.empty()
+    bullets.empty()
+    enemy_bullets.empty()
+    player_bullets.empty()
+    characters.empty()
+    shields.empty()
+    if lang == EN:
+        font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE)
+    else:
+        font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE)
+    while True:
+        screen.fill(BACKGROUND_COLOR)
+        blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
+def you_lost():
+    pygame.mixer.music.load("data/music/main_theme.wav")
+    pygame.mixer.music.play(-1)
+    all_sprites.empty()
+    information.empty()
+    bullets.empty()
+    enemy_bullets.empty()
+    player_bullets.empty()
+    characters.empty()
+    shields.empty()
+    if lang == EN:
+        font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE)
+    else:
+        font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE)
+    while True:
+        screen.fill(BACKGROUND_COLOR)
+        blit_text(screen, text_data[lang]["you_lost"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
         pygame.display.flip()
         clock.tick(FPS)
 
@@ -459,6 +515,7 @@ pygame.display.set_caption("MageVsMage")
 
 BACKGROUND_COLOR = (61, 61, 61)
 TEXT_COLOR = (10, 10, 10)
+BATTLE_TEXT = (240, 240, 240)
 START_POINT = (260, 500)
 ENEMY_POINT = (260, 130)
 FIELD_WIDTH = 453
@@ -467,10 +524,18 @@ LEFT_F_SPACE = 50
 TOP_F_SPACE = 90
 FONT_SIZE = 40
 
+
+special_symbol = {"@": (181, 6, 0),  #bloody color
+                  "!": (235, 179, 57),  #golden
+                 }
+
+
 text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "volume": "Music volume",
-              "sound": "Sound volume"},
+              "sound": "Sound volume", "you_lost": "You <@lost.@> Try again?",
+              "you_won": "You <!won.> But is it the <!end?!>"},
              {"start": "Начать игру", "settings": "Настройки", "exit": "Выход", "volume": "Громкость музыки",
-              "sound": "Громкость звука"}]
+              "sound": "Громкость звука", "you_lost": "Вы <@проиграли.@> Попытаться вновь?",
+              "you_won": "Вы <!победили.!> Но достигли ли вы <!конца?!>"}]
 EN = 0
 RU = 1
 volume = 2
