@@ -38,7 +38,7 @@ def player_image_load():
                         [load_image(f"game_sprites/sprites_Frossin/walking_forward/walking_forward{i}.png")
                          for i in range(1, 5)],
                     "walking_backward":
-                        [load_image(f"game_sprites/sprites_Frossin/walking_forward/walking_forward{i}.png")
+                        [load_image(f"game_sprites/sprites_Frossin/walking_backward/walking_backward{i}.png")
                          for i in range(1, 5)],
                     "walking_left":
                         [load_image(f"game_sprites/sprites_Frossin/walking_left/walking_left{i}.png")
@@ -50,7 +50,7 @@ def player_image_load():
                         [load_image(f"game_sprites/sprites_Frossin/run_forward/run_forward{i}.png")
                          for i in range(1, 9)],
                     "run_backward":
-                        [load_image(f"game_sprites/sprites_Frossin/run_forward/run_forward{i}.png")
+                        [load_image(f"game_sprites/sprites_Frossin/run_backward/run_backward{i}.png")
                          for i in range(1, 9)],
                     "run_left":
                         [load_image(f"game_sprites/sprites_Frossin/run_left/run_left{i}.png")
