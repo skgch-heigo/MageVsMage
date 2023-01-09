@@ -11,8 +11,11 @@ pygame.init()
 
 size = WIDTH, HEIGHT = 1024, 768
 screen = pygame.display.set_mode(size)
+pygame.display.set_icon(load_image("game_sprites/icon/icon2.png"))
 
 FPS = 50
+
+skip = 0
 
 
 def blit_text(surface, text, pos, width, the_font, color=pygame.Color((0, 0, 0))):
@@ -38,14 +41,21 @@ def blit_text(surface, text, pos, width, the_font, color=pygame.Color((0, 0, 0))
 
 
 def battle_engine(level_back, enemy, player):
+    global skip
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             terminate()
         if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
             pause()
+        if event.type == pygame.KEYDOWN and event.key == pygame.K_q:
+            skip += 100
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
             if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
                 pause()
+            if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 70 < event.pos[1] <= 135:
+                settings()
+                pygame.mixer.music.load("data/music/battle_theme.wav")
+                pygame.mixer.music.play(-1)
     screen.blit(level_back, (0, 0))
     screen.blit(draw_health_bar(enemy.life), (5, 5))
     screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
@@ -54,7 +64,10 @@ def battle_engine(level_back, enemy, player):
     shields.draw(screen)
     information.draw(screen)
     pygame.display.flip()
-    clock.tick(fps)
+    if skip <= 0:
+        clock.tick(fps)
+    else:
+        skip -= 1
 
 
 def blit_timed(surface, text, pos, width, the_font, level_back, enemy, player, color=pygame.Color((0, 0, 0)), wait=1):
@@ -202,8 +215,22 @@ class Player(pygame.sprite.Sprite):
         if pygame.key.get_pressed()[pygame.K_e]:
             if self.last_attack > 15:
                 self.last_attack = 0
+                x_speed = 0
+                y_speed = 0
+                if self.direction == "backward":
+                    x_speed = 0
+                    y_speed = -10
+                elif self.direction == "forward":
+                    x_speed = 0
+                    y_speed = 10
+                elif self.direction == "right":
+                    x_speed = 10
+                    y_speed = 0
+                elif self.direction == "left":
+                    x_speed = -10
+                    y_speed = 0
                 Bullet_code.Bullet((all_sprites, player_bullets), load_image("game_sprites/bullets/player_attack.png"),
-                                   self.rect.x, self.rect.y, 0, -10, 0, True, 10, "player")
+                                   self.rect.x, self.rect.y, x_speed, y_speed, 0, True, 10, "player")
 
         if pygame.key.get_pressed()[pygame.K_SPACE]:
             if self.running < -15:
@@ -294,6 +321,24 @@ def terminate():
     sys.exit()
 
 
+def introduction():
+    intro_now = 0
+    while True:
+        if intro_now >= len(introduction_images):
+            start_level(0)
+        screen.fill(BACKGROUND_COLOR)
+        screen.blit(introduction_images[intro_now], (WIDTH // 2 - introduction_images[intro_now].get_width() // 2, 100))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                intro_now += 1
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                intro_now += 1
+        pygame.display.flip()
+        clock.tick(fps)
+
+
 def start_screen():
     # code
     pygame.mixer.music.load("data/music/main_theme.wav")
@@ -307,7 +352,7 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
                         HEIGHT // 2 < event.pos[1] < HEIGHT // 2 + btn.get_height():
-                    start_level(0)
+                    introduction()
                 if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
                         HEIGHT // 2 + btn.get_height() + 10 < event.pos[1] < \
                         HEIGHT // 2 + btn.get_height() * 2 + 10:
@@ -359,6 +404,8 @@ def start_level(level):
     black_sq.image.fill((30, 30, 30))
     black_sq.rect = black_sq.image.get_rect()
     black_sq.rect.x = 553
+    sett = load_image("game_sprites/additional/settings.png")
+    black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
     timer = 0
     enemy_do = [Move("wait", 250)]
     enemy_do.extend(random.choice(enemy_moves).copy())
@@ -381,15 +428,34 @@ def start_level(level):
     pygame.display.flip()
     blit_timed(black_sq.image, text_data[lang]["tutorial"], (20, 100), 351, font,
                level_back, enemy, player, BATTLE_TEXT, wait=5)
+    text = ""
     while True:
+        if text == "sans":
+            pygame.mixer.music.load("data/music/spider.mp3")
+            pygame.mixer.music.play(-1)
+            enemy.life = 50
+            player.life = 1000
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 pause()
+            if event.type == pygame.KEYDOWN and event.key != pygame.K_s and event.key != pygame.K_a and \
+                    event.key != pygame.K_n:
+                text = ""
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_s:
+                text += "s"
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_a:
+                text += "a"
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_n:
+                text += "n"
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
                 if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
                     pause()
+                if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 70 < event.pos[1] <= 135:
+                    settings()
+                    pygame.mixer.music.load("data/music/battle_theme.wav")
+                    pygame.mixer.music.play(-1)
         if not level_run:
             return  # level ended
         if not enemy_do:
@@ -446,12 +512,14 @@ def start_level(level):
 def you_won():
     pygame.mixer.music.load("data/music/main_theme.wav")
     pygame.mixer.music.play(-1)
+    art = load_image("game_sprites/arts/win2.png")
     if lang == EN:
         font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
     else:
         font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
     while True:
         screen.fill(BACKGROUND_COLOR)
+        screen.blit(art, (WIDTH // 2 - art.get_width() // 2, 100))
         blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
         text1 = pygame.Surface((100, 50))
         text1.fill(BACKGROUND_COLOR)
@@ -537,6 +605,8 @@ def pause():
 
 def settings():
     global lang, sound, volume
+    pygame.mixer.music.load("data/music/main_theme.wav")
+    pygame.mixer.music.play(-1)
     en_image = load_image("game_sprites/additional/en.png")
     not_en_image = load_image("game_sprites/additional/not_en.png")
     ru_image = load_image("game_sprites/additional/ru.png")
@@ -634,7 +704,7 @@ special_symbol = {"@": (181, 6, 0),  # bloody color
 
 text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "volume": "Music volume",
               "sound": "Sound volume", "you_lost": "You <@lost.@> Try again?",
-              "you_won": "You <!won.> But is it the <!end?!>", "yes": "<!Yes!>", "no": "<@No@>",
+              "you_won": "You <!won.!> But is it the <!end?!>", "yes": "<!Yes!>", "no": "<@No@>",
               "yes_r": "<@Yes@>", "no_r": "<!No!>",
 
               "tutorial": "<@Hahaha,@> you somehow forgot how to move? $ So pathetic. $\nThen I should tell you that" +
@@ -665,6 +735,8 @@ RU = 1
 volume = 2
 sound = 2
 lang = EN
+
+introduction_images = [load_image("game_sprites/arts/introduction1.png"), pygame.Surface((0, 0))]
 
 screen.fill(BACKGROUND_COLOR)
 clock = pygame.time.Clock()
