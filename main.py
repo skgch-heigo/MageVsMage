@@ -46,6 +46,8 @@ def battle_engine(level_back, enemy, player):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
             if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
                 pause()
+            if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 70 < event.pos[1] <= 135:
+                settings()
     screen.blit(level_back, (0, 0))
     screen.blit(draw_health_bar(enemy.life), (5, 5))
     screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
@@ -202,8 +204,22 @@ class Player(pygame.sprite.Sprite):
         if pygame.key.get_pressed()[pygame.K_e]:
             if self.last_attack > 15:
                 self.last_attack = 0
+                x_speed = 0
+                y_speed = 0
+                if self.direction == "backward":
+                    x_speed = 0
+                    y_speed = -10
+                elif self.direction == "forward":
+                    x_speed = 0
+                    y_speed = 10
+                elif self.direction == "right":
+                    x_speed = 10
+                    y_speed = 0
+                elif self.direction == "left":
+                    x_speed = -10
+                    y_speed = 0
                 Bullet_code.Bullet((all_sprites, player_bullets), load_image("game_sprites/bullets/player_attack.png"),
-                                   self.rect.x, self.rect.y, 0, -10, 0, True, 10, "player")
+                                   self.rect.x, self.rect.y, x_speed, y_speed, 0, True, 10, "player")
 
         if pygame.key.get_pressed()[pygame.K_SPACE]:
             if self.running < -15:
@@ -294,6 +310,24 @@ def terminate():
     sys.exit()
 
 
+def introduction():
+    intro_now = 0
+    while True:
+        if intro_now >= len(introduction_images):
+            start_level(0)
+        screen.fill(BACKGROUND_COLOR)
+        screen.blit(introduction_images[intro_now], (WIDTH // 2 - introduction_images[intro_now].get_width() // 2, 100))
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_SPACE:
+                intro_now += 1
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                intro_now += 1
+        pygame.display.flip()
+        clock.tick(fps)
+
+
 def start_screen():
     # code
     pygame.mixer.music.load("data/music/main_theme.wav")
@@ -307,7 +341,7 @@ def start_screen():
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
                         HEIGHT // 2 < event.pos[1] < HEIGHT // 2 + btn.get_height():
-                    start_level(0)
+                    introduction()
                 if WIDTH // 2 - btn.get_width() // 2 < event.pos[0] < WIDTH // 2 + btn.get_width() // 2 and \
                         HEIGHT // 2 + btn.get_height() + 10 < event.pos[1] < \
                         HEIGHT // 2 + btn.get_height() * 2 + 10:
@@ -359,6 +393,8 @@ def start_level(level):
     black_sq.image.fill((30, 30, 30))
     black_sq.rect = black_sq.image.get_rect()
     black_sq.rect.x = 553
+    sett = load_image("game_sprites/additional/settings.png")
+    black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
     timer = 0
     enemy_do = [Move("wait", 250)]
     enemy_do.extend(random.choice(enemy_moves).copy())
@@ -390,6 +426,8 @@ def start_level(level):
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
                 if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
                     pause()
+                if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 70 < event.pos[1] <= 135:
+                    settings()
         if not level_run:
             return  # level ended
         if not enemy_do:
@@ -665,6 +703,8 @@ RU = 1
 volume = 2
 sound = 2
 lang = EN
+
+introduction_images = [load_image("game_sprites/arts/introduction1.png"), pygame.Surface((0, 0))]
 
 screen.fill(BACKGROUND_COLOR)
 clock = pygame.time.Clock()
