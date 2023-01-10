@@ -26,7 +26,7 @@ def blit_text(surface, text, pos, width, the_font, color=pygame.Color((0, 0, 0))
     word_height = 0
     for line in words:
         for word in line:
-            if len(word) > 5 and word.startswith("<") and word.endswith(">"):
+            if len(word) >= 5 and word.startswith("<") and word.endswith(">"):
                 word_surface = the_font.render(word[2:-2], 0, special_symbol[word[1]])
             else:
                 word_surface = the_font.render(word, 0, color)
@@ -326,8 +326,15 @@ def introduction():
     while True:
         if intro_now >= len(introduction_images):
             start_level(0)
+        if lang == EN:
+            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
+        else:
+            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
         screen.fill(BACKGROUND_COLOR)
-        screen.blit(introduction_images[intro_now], (WIDTH // 2 - introduction_images[intro_now].get_width() // 2, 100))
+        screen.blit(introduction_images[intro_now],
+                    (WIDTH // 2 - introduction_images[intro_now].get_width() // 2, 50))
+        blit_text(screen, text_data[lang]["intro" + str(intro_now + 1)],
+                  (WIDTH // 2 - 400, 100 if intro_now != 0 else HEIGHT // 2 + 100), 800, font, BATTLE_TEXT)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
@@ -389,11 +396,37 @@ def level_draw(level):
     return image
 
 
+def enemy_say(what_say, level_back, enemy, player, sett, enemy_do, black_sq, timer, shield):
+    hp_text.add(str(enemy.life) + "hp")
+    for i in bullets:
+        i.kill()
+    if not enemy.shield:
+        timer = 0
+        enemy.shield = True
+        shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
+                        load_image("game_sprites/additional/shield.png"))
+    enemy_do.clear()
+    enemy_do = random.choice(enemy_moves[phase]).copy()
+
+    if lang == EN:
+        font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
+    else:
+        font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU_MINI)
+
+    enemy_do.append(Move("unshield", enemy.open_time))
+    enemy_do.append(Move("wait", 250))
+    blit_timed(black_sq.image, text_data[lang][what_say], (20, 100), 351, font,
+               level_back, enemy, player, BATTLE_TEXT, wait=5)
+    black_sq.image.fill(BLACK_SQ_COLOR)
+    black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
+    return black_sq, enemy_do, timer, shield
+
+
 def start_level(level):
+    global phase
     # level start
     pygame.mixer.music.load("data/music/battle_theme.wav")
     pygame.mixer.music.play(-1)
-    phase = 0
     level_run = True
     level_back = level_draw(level)
     player = Player(*player_stats)
@@ -402,7 +435,6 @@ def start_level(level):
     enemy.spawn(*ENEMY_POINT)
     black_sq = pygame.sprite.Sprite(all_sprites, information)
     black_sq.image = pygame.Surface((471, 768))
-    BLACK_SQ_COLOR = (30, 30, 30)
     black_sq.image.fill(BLACK_SQ_COLOR)
     black_sq.rect = black_sq.image.get_rect()
     black_sq.rect.x = 553
@@ -416,7 +448,7 @@ def start_level(level):
     shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                     load_image("game_sprites/additional/shield.png"))
     pause_btn = PauseButton()
-    save_inf = (player.life, enemy.life)
+    save_inf = (player.life, enemy.life, phase, enemy.open_time)
     if lang == EN:
         font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
     else:
@@ -432,9 +464,10 @@ def start_level(level):
                level_back, enemy, player, BATTLE_TEXT, wait=5)
     black_sq.image.fill(BLACK_SQ_COLOR)
     black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
-    timer = 0
     text = ""
+
     while True:
+        print(phase)
         if text == "sans":
             pygame.mixer.music.load("data/music/spider.mp3")
             pygame.mixer.music.play(-1)
@@ -492,32 +525,22 @@ def start_level(level):
                 enemy.shield = True
                 shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                                 load_image("game_sprites/additional/shield.png"))
-
-        if str(enemy.life) + "hp" in text_data[lang] and enemy.life not in hp_text:
-            hp_text.add(enemy.life)
-            for i in bullets:
-                i.kill()
-            if not enemy.shield:
-                timer = 0
-                enemy.shield = True
-                shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
-                                load_image("game_sprites/additional/shield.png"))
-            enemy_do.clear()
+        if enemy.life < enemy.max_life and "first_damage_enemy" not in hp_text:
+            hp_text.add("first_damage_enemy")
+            black_sq, enemy_do, timer, shield = enemy_say("first_damage_enemy", level_back, enemy, player,
+                                                          sett, enemy_do, black_sq, timer, shield)
+        if player.life < player.max_life and "first_damage" not in hp_text:
+            hp_text.add("first_damage")
+            black_sq, enemy_do, timer, shield = enemy_say("first_damage", level_back, enemy, player, sett,
+                                                          enemy_do, black_sq, timer, shield)
+        if str(enemy.life) + "hp" in text_data[lang] and str(enemy.life) + "hp" not in hp_text:
+            save_inf = (player.life, enemy.life, phase, enemy.open_time)
+            hp_text.add(str(enemy.life) + "hp")
+            black_sq, enemy_do, timer, shield = enemy_say(str(enemy.life) + "hp", level_back, enemy, player,
+                                                          sett, enemy_do, black_sq, timer, shield)
+        if enemy.life in phases and phase != phases.index(enemy.life) + 1:
             phase += 1
-            enemy_do = random.choice(enemy_moves[phase]).copy()
             enemy.open_time -= 30
-
-            if lang == EN:
-                font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
-            else:
-                font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU_MINI)
-
-            enemy_do.append(Move("unshield", enemy.open_time))
-            enemy_do.append(Move("wait", 250))
-            blit_timed(black_sq.image, text_data[lang][str(enemy.life) + "hp"], (20, 100), 351, font,
-                       level_back, enemy, player, BATTLE_TEXT, wait=5)
-            black_sq.image.fill(BLACK_SQ_COLOR)
-            black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
 
         if enemy.life <= 0:
             you_won()
@@ -551,7 +574,7 @@ def you_won():
     while True:
         screen.fill(BACKGROUND_COLOR)
         screen.blit(art, (WIDTH // 2 - art.get_width() // 2, 100))
-        blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 400, int(HEIGHT * 0.7)), 800, font, BATTLE_TEXT)
         text1 = pygame.Surface((100, 50))
         text1.fill(BACKGROUND_COLOR)
         blit_text(text1, text_data[lang]["no_r"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
@@ -589,7 +612,7 @@ def you_lost():
     while True:
         screen.fill(BACKGROUND_COLOR)
         screen.blit(art, (WIDTH // 2 - art.get_width() // 2, 100))
-        blit_text(screen, text_data[lang]["you_lost"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        blit_text(screen, text_data[lang]["you_lost"], (WIDTH // 2 - 400, int(HEIGHT * 0.7)), 800, font, BATTLE_TEXT)
         text1 = pygame.Surface((100, 50))
         text1.fill(BACKGROUND_COLOR)
         blit_text(text1, text_data[lang]["yes"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
@@ -719,6 +742,7 @@ pygame.display.set_caption("MageVsMage")
 
 BACKGROUND_COLOR = (61, 61, 61)
 TEXT_COLOR = (10, 10, 10)
+BLACK_SQ_COLOR = (30, 30, 30)
 BATTLE_TEXT = (240, 240, 240)
 START_POINT = (260, 500)
 ENEMY_POINT = (260, 130)
@@ -735,38 +759,19 @@ special_symbol = {"@": (181, 6, 0),  # bloody color
                   "!": (235, 179, 57),  # golden
                   }
 
-text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "volume": "Music volume",
-              "sound": "Sound volume", "you_lost": "You <@lost.@> Try again?",
-              "you_won": "You <!won.!> But is it the <!end?!>", "yes": "<!Yes!>", "no": "<@No@>",
-              "yes_r": "<@Yes@>", "no_r": "<!No!>",
-
-              "tutorial": "<@Hahaha,@> you somehow forgot how to move? $ So pathetic. $\nThen I should tell you that" +
-                          " you move with <!WASD.!> $ Try it out, $ it shouldn't " +
-                          "be that hard even for someone like you. $" +
-                          "\nAs you are pretty stupid, $ I think I should also remind you that you can dash with "
-                          "<!space.!> $ This will help you not to get <@damage.@> $ " +
-                          "After all, $ I want this fight to be <@amusing.@> $ $\n\nAh, $ of course, $ don't forget " +
-                          "you can fight back with <!E.!> $ Thought that's pretty <@useless,@> $ don't you think?",
-              "400hp": "You still <@move?@> $ This is getting interesting... $ You better keep this up.",
-              "200hp": "Now this is starting to <@bore@> me. & Perhaps you have something better to do?"},
-
-             {"start": "Начать игру", "settings": "Настройки", "exit": "Выход", "volume": "Громкость музыки",
-              "sound": "Громкость звука", "you_lost": "Вы <@проиграли.@> Попытаться вновь?",
-              "you_won": "Вы <!победили.!> Но достигли ли вы <!конца?!>", "yes": "<!Да!>", "no": "<@Нет@>",
-              "yes_r": "<@Да@>", "no_r": "<!Нет!>",
-
-              "tutorial": "<@Хахаха,@> ты как-то разучился двигаться? $ Такой жалкий. $" +
-                          "\nТогда я должен сказать, что ты можешь двигаться с помощью <!WASD.!> $ " +
-                          "Попробуй, $ это не должно быть так сложно даже для таких, как ты. $" +
-                          "\nПоскольку ты довольно глуп, $ я думаю, я также должен напомнить тебе, " +
-                          "что ты можешь делать рывки с помощью <!пробела.!> " +
-                          "$ Это поможет тебе не получать <@урон.@> $ " +
-                          "В конце концов, $ мне бы хотелось, чтобы этот бой был <@забавным.@> $ $" +
-                          "\n\nАх, $ конечно, $ не забывай, " +
-                          "ты можешь дать отпор с помощью <!E.!> $ Правда, это довольно <@бесполезно,@> $ не так ли?",
-              "400hp": "Ты все еще <@двигаешься?@> $ Становится интересно... $ Продолжай в том же духе.",
-              "200hp": "Теперь это начинает меня <@утомлять@>. & Может быть, у тебя есть дела поважнее?"
-              }]
+text_data = []
+with open("data/text/text_en.txt", "r", encoding="utf-8") as f:
+    data = f.read().strip().split("###")
+    temp = {}
+    for i in data:
+        temp[i.split(": ")[0].strip()] = i.split(": ")[1].strip()
+    text_data.append(temp)
+with open("data/text/text_ru.txt", "r", encoding="utf-8") as f:
+    data = f.read().strip().split("###")
+    temp = {}
+    for i in data:
+        temp[i.split(": ")[0].strip()] = i.split(": ")[1].strip()
+    text_data.append(temp)
 EN = 0
 RU = 1
 volume = 2
@@ -809,6 +814,9 @@ nums = health_bar_load()
 player_stats = (3, 100)
 enemies = [(600, 250, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
                                  colorkey=(255, 255, 255)))]
+
+phases = [400, 200]
+phase = 0
 
 enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
                  Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),

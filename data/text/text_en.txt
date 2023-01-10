@@ -1,0 +1,35 @@
+start: Start game###
+settings: Settings###
+exit: Exit###
+volume: Music volume###
+sound: Sound volume###
+you_lost: I'm sorry, but I can't let things get ugly like before.
+You <@lost.@> Try again?###
+you_won: You <!won.!> Wasn't it a mistake...?###
+yes: <!Yes!>###
+no: <@No@>###
+yes_r: <@Yes@>###
+no_r: <!No!>###
+tutorial: <@Hahaha,@> you somehow forgot how to move? $ So pathetic. $
+Then I should tell you that you move with <!WASD.!> $ Try it out, $ it shouldn't be that hard even for someone like you. $
+As you are pretty stupid, $ I think I should also remind you that you can dash with <!space.!> $ This will help you not to get <@damage.@> $ After all, $ I want this fight to be <@amusing.@> $ $
+
+Ah, $ of course, $ don't forget you can fight back with <!E,!> and, $ perhaps, do something interesting with <!R.!> if you have enough power... $ Thought that's pretty <@useless,@> $ don't you think?
+
+Well... So you've chosen death. $ Fool! $ Behold what no one else was meant to see, for... $ You're not the only one with <@magic.@>###
+first_damage: Are there tears in your eyes? $ Come on, it didn't hurt that much. $ Why did you even come here in the first place?###
+first_damage_enemy: Ow, shit! $ Are you seriously trying to <@resist@> <@me?!@> $ Accept the kiss of <@death@> with dignity already, $ for you will never defeat me.###
+500hp: Again and again, empty attempts to break this vicious circle... $ You know, $ you remind me of the first man who came here with a sword instead of gold. $ His eyes burned with the same <@fire@> <@of@> <@determination,@> just like you do now.###
+400hp: You see me as a <@tyrant,@> a <@villain,@> an <@enemy,@> but no one, $ NONE of you has ever thought about WHY I do this. $ You're blind; $ you only see what you want to see.###
+300hp: ...*wipes blood from the corner of his lips and chuckles bitterly* $ I just want to bring prosperity to this country. $ I want to make it better than when I was a child. $ When I was hungry, when everyone was hungry, when killing in the streets was the norm. $ When my beloved died during the war.###
+200hp: ...Look around you now. $ What do you see? $ No unemployment, $ no homeless, $ no beggars, $ no riots, because I'm clearly in control. $ Isn't that what you call utopia? $ Why, then, are you people so eager to go back to the <@bottom?@>###
+100hp: ...I see now. $ Yes, yes, I see it all. $ You've been staging strikes, turning people against me--I've noticed everything--not because you wanted to change the world, $ but because you wanted to change your situation. $ To take power. $ $
+
+Isn't that right? $
+
+You don't care at all about your acquaintances, your friends, your loved ones. $ You only see me as a villain because the crown is in my hands.###
+50hp: Well... $ *coughs and falls to his knees* $ If it really ends up that way... $ *closes his eyes and smiles as a tear rolls down his cheek* $ ...Bury me next to her. $ And I... $ $ Elizabeth, $ I'm coming to you...###
+intro1: So... I am yet again at the entrance of this <!castle,!> but now my determination is enough to stop all the <@madness@> that our king is doing. These executions, tribute collections, outrages... <@Disgusting.@>###
+intro2: My friends, acquaintances, loved ones... They believe in me, that I will prevail and seize power, finally bringing <!peace!> to our land. Now I just can't back down, can I?
+
+My hands clench into fists, a strangled sigh escapes my lips. Is <@it@> really worth it...?
