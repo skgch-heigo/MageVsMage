@@ -160,7 +160,7 @@ class PauseButton(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, speed, max_life):
+    def __init__(self, speed, max_life, energy_need):
         super().__init__(characters, all_sprites)
         self.direction = "forward"
         self.move = "standing"
@@ -175,6 +175,8 @@ class Player(pygame.sprite.Sprite):
         self.life = max_life
         self.last_attack = 0
         self.invulnerable = 0
+        self.energy_need = energy_need
+        self.energy = 0
 
     def update(self, *args):
         self.last_attack += 1
@@ -257,7 +259,7 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, max_life, open_time, image):
+    def __init__(self, max_life, open_time, image, player):
         super().__init__(characters, all_sprites)
         self.image = image
         self.open_time = open_time
@@ -266,12 +268,14 @@ class Enemy(pygame.sprite.Sprite):
         self.shield = True
         self.max_life = max_life
         self.life = max_life
+        self.player = player
 
     def update(self, *args):
         if not self.shield:
             for i in pygame.sprite.spritecollide(self, player_bullets, True):
                 pygame.mixer.Sound.play(sounds["enemy_hit"])
                 self.life = max(self.life - i.damage, 0)
+                self.player[0].energy = min(self.player[0].energy + 1, self.player[0].energy_need)
 
     def spawn(self, pos_x, pos_y):
         self.rect = self.image.get_rect()
@@ -431,7 +435,7 @@ def start_level(level):
     level_back = level_draw(level)
     player = Player(*player_stats)
     player.spawn(*START_POINT)
-    enemy = Enemy(*enemies[0])
+    enemy = Enemy(*enemies[0], [player])
     enemy.spawn(*ENEMY_POINT)
     black_sq = pygame.sprite.Sprite(all_sprites, information)
     black_sq.image = pygame.Surface((471, 768))
@@ -467,7 +471,7 @@ def start_level(level):
     text = ""
 
     while True:
-        print(phase)
+        print(player.energy)
         if text == "sans":
             pygame.mixer.music.load("data/music/spider.mp3")
             pygame.mixer.music.play(-1)
@@ -533,9 +537,9 @@ def start_level(level):
             hp_text.add("first_damage")
             black_sq, enemy_do, timer, shield = enemy_say("first_damage", level_back, enemy, player, sett,
                                                           enemy_do, black_sq, timer, shield)
-        if str(enemy.life) + "hp" in text_data[lang] and str(enemy.life) + "hp" not in hp_text:
+        if enemy.life <= max(hp_times):
+            del hp_times[hp_times.index(max(hp_times))]
             save_inf = (player.life, enemy.life, phase, enemy.open_time)
-            hp_text.add(str(enemy.life) + "hp")
             black_sq, enemy_do, timer, shield = enemy_say(str(enemy.life) + "hp", level_back, enemy, player,
                                                           sett, enemy_do, black_sq, timer, shield)
         if enemy.life in phases and phase != phases.index(enemy.life) + 1:
@@ -795,6 +799,8 @@ player_bullets = pygame.sprite.Group()
 characters = pygame.sprite.Group()
 shields = pygame.sprite.Group()
 
+hp_times = [50, 100, 200, 300, 400, 500]
+
 sounds = {
     "enemy_hit": pygame.mixer.Sound("data/sounds/enemy_hit.wav"),
     "hit_sound": pygame.mixer.Sound("data/sounds/hit_sound.wav"),
@@ -811,7 +817,7 @@ for i in sounds:
 player_image = player_image_load()
 nums = health_bar_load()
 
-player_stats = (3, 100)
+player_stats = (3, 100, 20)
 enemies = [(600, 250, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
                                  colorkey=(255, 255, 255)))]
 
