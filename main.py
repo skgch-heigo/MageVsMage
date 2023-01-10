@@ -56,15 +56,15 @@ def battle_engine(level_back, enemy, player):
                 settings()
                 pygame.mixer.music.load("data/music/battle_theme.wav")
                 pygame.mixer.music.play(-1)
-    screen.blit(level_back, (0, 0))
-    screen.blit(draw_health_bar(enemy.life), (5, 5))
-    screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
-    all_sprites.update()
-    all_sprites.draw(screen)
-    shields.draw(screen)
-    information.draw(screen)
-    pygame.display.flip()
     if skip <= 0:
+        screen.blit(level_back, (0, 0))
+        screen.blit(draw_health_bar(enemy.life), (5, 5))
+        screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        all_sprites.update()
+        all_sprites.draw(screen)
+        shields.draw(screen)
+        information.draw(screen)
+        pygame.display.flip()
         clock.tick(fps)
     else:
         skip -= 1
@@ -507,6 +507,11 @@ def start_level(level):
             enemy_do = random.choice(enemy_moves[phase]).copy()
             enemy.open_time -= 30
 
+            if lang == EN:
+                font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
+            else:
+                font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU_MINI)
+
             enemy_do.append(Move("unshield", enemy.open_time))
             enemy_do.append(Move("wait", 250))
             blit_timed(black_sq.image, text_data[lang][str(enemy.life) + "hp"], (20, 100), 351, font,
@@ -743,7 +748,7 @@ text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "vo
                           "After all, $ I want this fight to be <@amusing.@> $ $\n\nAh, $ of course, $ don't forget " +
                           "you can fight back with <!E.!> $ Thought that's pretty <@useless,@> $ don't you think?",
               "400hp": "You still <@move?@> $ This is getting interesting... $ You better keep this up.",
-              "200hp": "Now this is starting to <@bore@> me. Perhaps you have something better to do?"},
+              "200hp": "Now this is starting to <@bore@> me. & Perhaps you have something better to do?"},
 
              {"start": "Начать игру", "settings": "Настройки", "exit": "Выход", "volume": "Громкость музыки",
               "sound": "Громкость звука", "you_lost": "Вы <@проиграли.@> Попытаться вновь?",
@@ -760,7 +765,7 @@ text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "vo
                           "\n\nАх, $ конечно, $ не забывай, " +
                           "ты можешь дать отпор с помощью <!E.!> $ Правда, это довольно <@бесполезно,@> $ не так ли?",
               "400hp": "Ты все еще <@двигаешься?@> $ Становится интересно... $ Продолжай в том же духе.",
-              "200hp": "Теперь это начинает меня <@утомлять@>. Может быть, у тебя есть дела поважнее?"
+              "200hp": "Теперь это начинает меня <@утомлять@>. & Может быть, у тебя есть дела поважнее?"
               }]
 EN = 0
 RU = 1
@@ -827,7 +832,7 @@ enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
                       load_image("game_sprites/area/lazer_prep.png"),
                       load_image("game_sprites/area/lazer.png"), 0,
                       HEIGHT if i % 4 == 0 else -180,
-                      0, -10 if i % 4 == 0 else 10, 120, 50, 10)
+                      0, -10 if i % 4 == 0 else 10, 120, 40, 10)
                  for i in range(12)]],
                [[Move("wait", 2) if i % 2 == 1 else
                  Move("bullet",
@@ -841,7 +846,7 @@ enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
                       load_image("game_sprites/area/lazer_prep.png"),
                       load_image("game_sprites/area/lazer.png"), 0,
                       HEIGHT if i % 4 == 0 else -180,
-                      0, -12 if i % 4 == 0 else 12, 120, 50, 10)
+                      0, -12 if i % 4 == 0 else 12, 120, 30, 10)
                  for i in range(15)]]
                ]
 
