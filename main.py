@@ -393,6 +393,7 @@ def start_level(level):
     # level start
     pygame.mixer.music.load("data/music/battle_theme.wav")
     pygame.mixer.music.play(-1)
+    phase = 0
     level_run = True
     level_back = level_draw(level)
     player = Player(*player_stats)
@@ -401,15 +402,16 @@ def start_level(level):
     enemy.spawn(*ENEMY_POINT)
     black_sq = pygame.sprite.Sprite(all_sprites, information)
     black_sq.image = pygame.Surface((471, 768))
-    black_sq.image.fill((30, 30, 30))
+    BLACK_SQ_COLOR = (30, 30, 30)
+    black_sq.image.fill(BLACK_SQ_COLOR)
     black_sq.rect = black_sq.image.get_rect()
     black_sq.rect.x = 553
     sett = load_image("game_sprites/additional/settings.png")
     black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
     timer = 0
     enemy_do = [Move("wait", 250)]
-    enemy_do.extend(random.choice(enemy_moves).copy())
-    enemy_do.append(Move("unshield", 250))
+    enemy_do.extend(random.choice(enemy_moves[phase]).copy())
+    enemy_do.append(Move("unshield", enemy.open_time))
     enemy_do.append(Move("wait", 250))
     shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                     load_image("game_sprites/additional/shield.png"))
@@ -428,6 +430,9 @@ def start_level(level):
     pygame.display.flip()
     blit_timed(black_sq.image, text_data[lang]["tutorial"], (20, 100), 351, font,
                level_back, enemy, player, BATTLE_TEXT, wait=5)
+    black_sq.image.fill(BLACK_SQ_COLOR)
+    black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
+    timer = 0
     text = ""
     while True:
         if text == "sans":
@@ -459,9 +464,9 @@ def start_level(level):
         if not level_run:
             return  # level ended
         if not enemy_do:
-            save_inf = (player.life, enemy.life)
-            enemy_do = random.choice(enemy_moves).copy()
-            enemy_do.append(Move("unshield", 250))
+            save_inf = (player.life, enemy.life, phase, enemy.open_time)
+            enemy_do = random.choice(enemy_moves[phase]).copy()
+            enemy_do.append(Move("unshield", enemy.open_time))
             enemy_do.append(Move("wait", 250))
         if enemy_do[0].type == "wait":
             if timer < enemy_do[0].time:
@@ -488,14 +493,35 @@ def start_level(level):
                 shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                                 load_image("game_sprites/additional/shield.png"))
 
+        if str(enemy.life) + "hp" in text_data[lang] and enemy.life not in hp_text:
+            hp_text.add(enemy.life)
+            for i in bullets:
+                i.kill()
+            if not enemy.shield:
+                timer = 0
+                enemy.shield = True
+                shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
+                                load_image("game_sprites/additional/shield.png"))
+            enemy_do.clear()
+            phase += 1
+            enemy_do = random.choice(enemy_moves[phase]).copy()
+            enemy.open_time -= 30
+
+            enemy_do.append(Move("unshield", enemy.open_time))
+            enemy_do.append(Move("wait", 250))
+            blit_timed(black_sq.image, text_data[lang][str(enemy.life) + "hp"], (20, 100), 351, font,
+                       level_back, enemy, player, BATTLE_TEXT, wait=5)
+            black_sq.image.fill(BLACK_SQ_COLOR)
+            black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
+
         if enemy.life <= 0:
             you_won()
         if player.life <= 0:
             you_lost()
-            player.life, enemy.life = save_inf
-            enemy_do = [Move("unshield", 250), Move("wait", 250)]
-            enemy_do.extend(random.choice(enemy_moves).copy())
-            enemy_do.append(Move("unshield", 250))
+            player.life, enemy.life, phase, enemy.open_time = save_inf
+            enemy_do = [Move("wait", 250)]
+            enemy_do.extend(random.choice(enemy_moves[phase]).copy())
+            enemy_do.append(Move("unshield", enemy.open_time))
             enemy_do.append(Move("wait", 250))
 
         screen.blit(level_back, (0, 0))
@@ -550,12 +576,14 @@ def you_lost():
         i.kill()
     pygame.mixer.music.load("data/music/main_theme.wav")
     pygame.mixer.music.play(-1)
+    art = load_image("game_sprites/arts/lose2.png")
     if lang == EN:
         font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
     else:
         font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
     while True:
         screen.fill(BACKGROUND_COLOR)
+        screen.blit(art, (WIDTH // 2 - art.get_width() // 2, 100))
         blit_text(screen, text_data[lang]["you_lost"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
         text1 = pygame.Surface((100, 50))
         text1.fill(BACKGROUND_COLOR)
@@ -713,7 +741,9 @@ text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "vo
                           "\nAs you are pretty stupid, $ I think I should also remind you that you can dash with "
                           "<!space.!> $ This will help you not to get <@damage.@> $ " +
                           "After all, $ I want this fight to be <@amusing.@> $ $\n\nAh, $ of course, $ don't forget " +
-                          "you can fight back with <!E.!> $ Thought that's pretty <@useless,@> $ don't you think?"},
+                          "you can fight back with <!E.!> $ Thought that's pretty <@useless,@> $ don't you think?",
+              "400hp": "You still <@move?@> $ This is getting interesting... $ You better keep this up.",
+              "200hp": "Now this is starting to <@bore@> me. Perhaps you have something better to do?"},
 
              {"start": "Начать игру", "settings": "Настройки", "exit": "Выход", "volume": "Громкость музыки",
               "sound": "Громкость звука", "you_lost": "Вы <@проиграли.@> Попытаться вновь?",
@@ -726,15 +756,19 @@ text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "vo
                           "\nПоскольку ты довольно глуп, $ я думаю, я также должен напомнить тебе, " +
                           "что ты можешь делать рывки с помощью <!пробела.!> " +
                           "$ Это поможет тебе не получать <@урон.@> $ " +
-                          "В конце концов, $ я хочу, чтобы этот бой был <@забавным.@> $ $" +
+                          "В конце концов, $ мне бы хотелось, чтобы этот бой был <@забавным.@> $ $" +
                           "\n\nАх, $ конечно, $ не забывай, " +
-                          "ты можешь дать отпор с помощью <!E.!> $ Правда, это довольно <@бесполезно,@> $ не так ли?"
+                          "ты можешь дать отпор с помощью <!E.!> $ Правда, это довольно <@бесполезно,@> $ не так ли?",
+              "400hp": "Ты все еще <@двигаешься?@> $ Становится интересно... $ Продолжай в том же духе.",
+              "200hp": "Теперь это начинает меня <@утомлять@>. Может быть, у тебя есть дела поважнее?"
               }]
 EN = 0
 RU = 1
 volume = 2
 sound = 2
 lang = EN
+
+hp_text = set()
 
 introduction_images = [load_image("game_sprites/arts/introduction1.png"), pygame.Surface((0, 0))]
 
@@ -768,19 +802,48 @@ player_image = player_image_load()
 nums = health_bar_load()
 
 player_stats = (3, 100)
-enemies = [(600, 500, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
-                                colorkey=(255, 255, 255)))]
+enemies = [(600, 250, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
+                                 colorkey=(255, 255, 255)))]
 
-enemy_moves = [[Move("wait", 5) if i % 2 == 1 else
-                Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
-                     random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
-                     -89, 0, random.randint(5, 8), 0, False, 10)
-                for i in range(120)], [Move("wait", 50) if i % 2 == 1 else
-                                       Move("area_attack", load_image("game_sprites/area/lazer_prep.png"),
-                                            load_image("game_sprites/area/lazer.png"), 0,
-                                            HEIGHT if i % 4 == 0 else -180,
-                                            0, -8 if i % 4 == 0 else 8, 120, 50, 10)
-                                       for i in range(10)]]
+enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
+                 Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
+                      random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
+                      -89, 0, random.randint(5, 8), 0, False, 10)
+                 for i in range(120)], [Move("wait", 50) if i % 2 == 1 else
+                                        Move("area_attack", load_image("game_sprites/area/lazer_prep.png"),
+                                             load_image("game_sprites/area/lazer.png"), 0,
+                                             HEIGHT if i % 4 == 0 else -180,
+                                             0, -8 if i % 4 == 0 else 8, 120, 50, 10)
+                                        for i in range(10)]],
+               [[Move("wait", 3) if i % 2 == 1 else
+                 Move("bullet",
+                      load_image("game_sprites/bullets/blood_drop.png"),
+                      random.randint(LEFT_F_SPACE,
+                                     LEFT_F_SPACE + FIELD_WIDTH - 30),
+                      -89, 0, random.randint(7, 10), 0, False, 10)
+                 for i in range(170)],
+                [Move("wait", 40) if i % 2 == 1 else
+                 Move("area_attack",
+                      load_image("game_sprites/area/lazer_prep.png"),
+                      load_image("game_sprites/area/lazer.png"), 0,
+                      HEIGHT if i % 4 == 0 else -180,
+                      0, -10 if i % 4 == 0 else 10, 120, 50, 10)
+                 for i in range(12)]],
+               [[Move("wait", 2) if i % 2 == 1 else
+                 Move("bullet",
+                      load_image("game_sprites/bullets/blood_drop.png"),
+                      random.randint(LEFT_F_SPACE,
+                                     LEFT_F_SPACE + FIELD_WIDTH - 30),
+                      -89, 0, random.randint(9, 12), 0, False, 10)
+                 for i in range(200)],
+                [Move("wait", 30) if i % 2 == 1 else
+                 Move("area_attack",
+                      load_image("game_sprites/area/lazer_prep.png"),
+                      load_image("game_sprites/area/lazer.png"), 0,
+                      HEIGHT if i % 4 == 0 else -180,
+                      0, -12 if i % 4 == 0 else 12, 120, 50, 10)
+                 for i in range(15)]]
+               ]
 
 start_screen()
 

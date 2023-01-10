@@ -20,8 +20,8 @@ class Bullet(pygame.sprite.Sprite):
 
         self.x = pos_x
         self.y = pos_y
-        self.speed_x = speed_x
-        self.speed_y = speed_y
+        self.speed_x = int(speed_x)
+        self.speed_y = int(speed_y)
         self.bounce = bounce
         self.side = side
 
