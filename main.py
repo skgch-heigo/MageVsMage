@@ -5,6 +5,7 @@ import os
 import pygame
 
 import Bullet_code
+import image_code
 from image_code import player_image_load, load_image, health_bar_load
 
 pygame.init()
@@ -58,8 +59,11 @@ def battle_engine(level_back, enemy, player):
                 pygame.mixer.music.play(-1)
     if skip <= 0:
         screen.blit(level_back, (0, 0))
-        screen.blit(draw_health_bar(enemy.life), (5, 5))
-        screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        screen.blit(draw_health_bar(max(enemy.life, 0)), (5, 5))
+        screen.blit(draw_health_bar(max(player.life, 0)), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        energy_bar = draw_health_bar(player.energy, player.energy_need, energy=True)
+        screen.blit(energy_bar, (LEFT_F_SPACE + FIELD_WIDTH - energy_bar.get_width() - 5,
+                                 TOP_F_SPACE + FIELD_HEIGHT + 5))
         all_sprites.update()
         all_sprites.draw(screen)
         shields.draw(screen)
@@ -103,12 +107,22 @@ def blit_timed(surface, text, pos, width, the_font, level_back, enemy, player, c
         battle_engine(level_back, enemy, player)
 
 
-def draw_health_bar(health):
-    surf = pygame.Surface(((len(str(health)) + 1) * 30, 30))
+def draw_health_bar(*health, energy=False):
+    if not energy:
+        surf = pygame.Surface(((len(str(health[0])) + 1) * 30, 30))
+        surf.fill(BACKGROUND_COLOR)
+        surf.blit(nums[10], (0, 0))
+        for i in range(len(str(health[0]))):
+            surf.blit(nums[int(str(health[0])[i])], ((i + 1) * 30, 0))
+        return surf
+    surf = pygame.Surface(((len(str(health[0])) + len(str(health[1])) + 2) * 30, 30))
     surf.fill(BACKGROUND_COLOR)
-    surf.blit(nums[10], (0, 0))
-    for i in range(len(str(health))):
-        surf.blit(nums[int(str(health)[i])], ((i + 1) * 30, 0))
+    surf.blit(nums[11], (0, 0))
+    for i in range(len(str(health[0]))):
+        surf.blit(nums[int(str(health[0])[i])], ((i + 1) * 30, 0))
+    surf.blit(nums[12], ((len(str(health[0])) + 1) * 30, 0))
+    for i in range(len(str(health[1]))):
+        surf.blit(nums[int(str(health[1])[i])], ((len(str(health[0])) + i + 2) * 30, 0))
     return surf
 
 
@@ -325,6 +339,37 @@ def terminate():
     sys.exit()
 
 
+def ultra_move():
+    ultra_group = pygame.sprite.Group()
+    ultra = pygame.sprite.Sprite(ultra_group)
+    timer = 150
+    ultra.image = ultra_images[timer // 10 % len(ultra_images)]
+    ultra.rect = ultra.image.get_rect()
+    ultra.rect.x = LEFT_F_SPACE
+    ultra.rect.y = HEIGHT // 2 - ultra.image.get_height() // 2
+    while True:
+        ultra.image = ultra_images[timer // 10 % len(ultra_images)]
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pause()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                if 482 < event.pos[0] <= 542 and 354 < event.pos[1] <= 414:
+                    pause()
+                if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 70 < event.pos[1] <= 135:
+                    settings()
+                    pygame.mixer.music.load("data/music/battle_theme.wav")
+                    pygame.mixer.music.play(-1)
+        ultra_group.draw(screen)
+        pygame.display.flip()
+        if timer > 0:
+            timer -= 1
+            clock.tick(FPS)
+        else:
+            return
+
+
 def introduction():
     intro_now = 0
     while True:
@@ -452,7 +497,7 @@ def start_level(level):
     shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                     load_image("game_sprites/additional/shield.png"))
     pause_btn = PauseButton()
-    save_inf = (player.life, enemy.life, phase, enemy.open_time)
+    save_inf = (player.life, enemy.life, phase, enemy.open_time, player.energy)
     if lang == EN:
         font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
     else:
@@ -471,8 +516,9 @@ def start_level(level):
     text = ""
 
     while True:
-        print(player.energy)
         if text == "sans":
+            hp_times.clear()
+            hp_text.add("first_damage_enemy")
             pygame.mixer.music.load("data/music/spider.mp3")
             pygame.mixer.music.play(-1)
             enemy.life = 50
@@ -491,6 +537,15 @@ def start_level(level):
                 text += "a"
             if event.type == pygame.KEYDOWN and event.key == pygame.K_n:
                 text += "n"
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                if player.energy == player.energy_need:
+                    player.energy = 0
+                    ultra_move()
+                    pygame.mixer.Sound.play(sounds["ultra"])
+                    if enemy.shield:
+                        enemy.life -= 40
+                    else:
+                        enemy.life -= 80
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
                 if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
                     pause()
@@ -501,7 +556,7 @@ def start_level(level):
         if not level_run:
             return  # level ended
         if not enemy_do:
-            save_inf = (player.life, enemy.life, phase, enemy.open_time)
+            save_inf = (player.life, enemy.life, phase, enemy.open_time, player.energy)
             enemy_do = random.choice(enemy_moves[phase]).copy()
             enemy_do.append(Move("unshield", enemy.open_time))
             enemy_do.append(Move("wait", 250))
@@ -529,6 +584,9 @@ def start_level(level):
                 enemy.shield = True
                 shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                                 load_image("game_sprites/additional/shield.png"))
+        if enemy.life in phases and phase != phases.index(enemy.life) + 1:
+            phase += 1
+            enemy.open_time -= 40
         if enemy.life < enemy.max_life and "first_damage_enemy" not in hp_text:
             hp_text.add("first_damage_enemy")
             black_sq, enemy_do, timer, shield = enemy_say("first_damage_enemy", level_back, enemy, player,
@@ -537,28 +595,29 @@ def start_level(level):
             hp_text.add("first_damage")
             black_sq, enemy_do, timer, shield = enemy_say("first_damage", level_back, enemy, player, sett,
                                                           enemy_do, black_sq, timer, shield)
-        if enemy.life <= max(hp_times):
+        if hp_times and enemy.life <= max(hp_times):
+            saying = str(max(hp_times))
             del hp_times[hp_times.index(max(hp_times))]
-            save_inf = (player.life, enemy.life, phase, enemy.open_time)
-            black_sq, enemy_do, timer, shield = enemy_say(str(enemy.life) + "hp", level_back, enemy, player,
+            save_inf = (player.life, enemy.life, phase, enemy.open_time, player.energy)
+            black_sq, enemy_do, timer, shield = enemy_say(saying + "hp", level_back, enemy, player,
                                                           sett, enemy_do, black_sq, timer, shield)
-        if enemy.life in phases and phase != phases.index(enemy.life) + 1:
-            phase += 1
-            enemy.open_time -= 30
 
         if enemy.life <= 0:
             you_won()
         if player.life <= 0:
             you_lost()
-            player.life, enemy.life, phase, enemy.open_time = save_inf
+            player.life, enemy.life, phase, enemy.open_time, player.energy = save_inf
             enemy_do = [Move("wait", 250)]
             enemy_do.extend(random.choice(enemy_moves[phase]).copy())
             enemy_do.append(Move("unshield", enemy.open_time))
             enemy_do.append(Move("wait", 250))
 
         screen.blit(level_back, (0, 0))
-        screen.blit(draw_health_bar(enemy.life), (5, 5))
-        screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        screen.blit(draw_health_bar(max(enemy.life, 0)), (5, 5))
+        screen.blit(draw_health_bar(max(player.life, 0)), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        energy_bar = draw_health_bar(player.energy, player.energy_need, energy=True)
+        screen.blit(energy_bar, (LEFT_F_SPACE + FIELD_WIDTH - energy_bar.get_width() - 5,
+                                 TOP_F_SPACE + FIELD_HEIGHT + 5))
         all_sprites.update()
         all_sprites.draw(screen)
         shields.draw(screen)
@@ -581,10 +640,10 @@ def you_won():
         blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 400, int(HEIGHT * 0.7)), 800, font, BATTLE_TEXT)
         text1 = pygame.Surface((100, 50))
         text1.fill(BACKGROUND_COLOR)
-        blit_text(text1, text_data[lang]["no_r"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
+        blit_text(text1, text_data[lang]["yes"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
         text2 = pygame.Surface((100, 50))
         text2.fill(BACKGROUND_COLOR)
-        blit_text(text2, text_data[lang]["yes_r"], (0, 0), text2.get_width(), font, BATTLE_TEXT)
+        blit_text(text2, text_data[lang]["no"], (0, 0), text2.get_width(), font, BATTLE_TEXT)
         screen.blit(text1, (WIDTH // 2 - 150, int(HEIGHT * 0.9)))
         screen.blit(text2, (WIDTH // 2 + 50, int(HEIGHT * 0.9)))
         for event in pygame.event.get():
@@ -804,7 +863,10 @@ hp_times = [50, 100, 200, 300, 400, 500]
 sounds = {
     "enemy_hit": pygame.mixer.Sound("data/sounds/enemy_hit.wav"),
     "hit_sound": pygame.mixer.Sound("data/sounds/hit_sound.wav"),
-    "shield_crash": pygame.mixer.Sound("data/sounds/shield_crash.wav")}
+    "shield_crash": pygame.mixer.Sound("data/sounds/shield_crash.wav"),
+    "ultra": pygame.mixer.Sound("data/sounds/ultra.wav")}
+
+ultra_images = image_code.ultra_load()
 
 running = True
 
@@ -847,7 +909,15 @@ enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
                       load_image("game_sprites/area/lazer.png"), 0,
                       HEIGHT if i % 4 == 0 else -180,
                       0, -10 if i % 4 == 0 else 10, 120, 40, 10)
-                 for i in range(12)]],
+                 for i in range(12)], [Move("wait", 10) if i % 2 == 1 else
+                                       Move("bullet",
+                                            load_image("game_sprites/bullets/fire_ball.png"),
+                                            ENEMY_POINT[0], ENEMY_POINT[1],
+                                            random.choice([random.randint(-3, -1), random.randint(1, 3)]),
+                                            random.choice([random.randint(-3, -1), random.randint(1, 3)]), 3, True,
+                                            10)
+                                       for i in range(30)
+                                       ] + [Move("wait", 350)]],
                [[Move("wait", 2) if i % 2 == 1 else
                  Move("bullet",
                       load_image("game_sprites/bullets/blood_drop.png"),
@@ -861,7 +931,15 @@ enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
                       load_image("game_sprites/area/lazer.png"), 0,
                       HEIGHT if i % 4 == 0 else -180,
                       0, -12 if i % 4 == 0 else 12, 120, 30, 10)
-                 for i in range(15)]]
+                 for i in range(15)], [Move("wait", 8) if i % 2 == 1 else
+                                       Move("bullet",
+                                            load_image("game_sprites/bullets/fire_ball.png"),
+                                            ENEMY_POINT[0], ENEMY_POINT[1],
+                                            random.choice([random.randint(-5, -2), random.randint(2, 5)]),
+                                            random.choice([random.randint(-5, -2), random.randint(2, 5)]), 3, True,
+                                            10)
+                                       for i in range(40)
+                                       ] + [Move("wait", 350)]]
                ]
 
 start_screen()

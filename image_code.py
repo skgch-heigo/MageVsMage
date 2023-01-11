@@ -67,4 +67,12 @@ def health_bar_load():
         nums.append(load_image("game_sprites/additional/num" + str(i) + ".png"))
     nums.append(load_image("game_sprites/additional/heart.png"))
     nums.append(load_image("game_sprites/additional/energy.png"))
+    nums.append(load_image("game_sprites/additional/line.png"))
     return nums
+
+
+def ultra_load():
+    images = []
+    for i in range(1, 3):
+        images.append(load_image("game_sprites/arts/fin_ultra" + str(i) + ".png"))
+    return images

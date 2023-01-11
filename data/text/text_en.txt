@@ -21,7 +21,8 @@ first_damage: Are there tears in your eyes? $ Come on, it didn't hurt that much.
 first_damage_enemy: Ow, shit! $ Are you seriously trying to <@resist@> <@me?!@> $ Accept the kiss of <@death@> with dignity already, $ for you will never defeat me.###
 500hp: Again and again, empty attempts to break this vicious circle... $ You know, $ you remind me of the first man who came here with a sword instead of gold. $ His eyes burned with the same <@fire@> <@of@> <@determination,@> just like you do now.###
 400hp: You see me as a <@tyrant,@> a <@villain,@> an <@enemy,@> but no one, $ NONE of you has ever thought about WHY I do this. $ You're blind; $ you only see what you want to see.###
-300hp: ...*wipes blood from the corner of his lips and chuckles bitterly* $ I just want to bring prosperity to this country. $ I want to make it better than when I was a child. $ When I was hungry, when everyone was hungry, when killing in the streets was the norm. $ When my beloved died during the war.###
+300hp: ...*wipes blood from the corner of his lips and chuckles bitterly* $ $ I just want to bring prosperity to this country. $ I want to make it better than when I was a child. $ $ When I was hungry, $ when everyone was hungry, $ when killing in the streets was the norm. $ $
+When my beloved died during the war.###
 200hp: ...Look around you now. $ What do you see? $ No unemployment, $ no homeless, $ no beggars, $ no riots, because I'm clearly in control. $ Isn't that what you call utopia? $ Why, then, are you people so eager to go back to the <@bottom?@>###
 100hp: ...I see now. $ Yes, yes, I see it all. $ You've been staging strikes, turning people against me--I've noticed everything--not because you wanted to change the world, $ but because you wanted to change your situation. $ To take power. $ $
 

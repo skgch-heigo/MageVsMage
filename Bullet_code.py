@@ -24,6 +24,8 @@ class Bullet(pygame.sprite.Sprite):
         self.speed_y = int(speed_y)
         self.bounce = bounce
         self.side = side
+        if self.speed_x == 0 and self.speed_y == 0:
+            self.delete()
 
     def update(self, *args):
         if self.fazed:
