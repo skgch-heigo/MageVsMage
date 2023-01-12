@@ -5,6 +5,7 @@ import os
 import pygame
 
 import Bullet_code
+import image_code
 from image_code import player_image_load, load_image, health_bar_load
 
 pygame.init()
@@ -26,7 +27,7 @@ def blit_text(surface, text, pos, width, the_font, color=pygame.Color((0, 0, 0))
     word_height = 0
     for line in words:
         for word in line:
-            if len(word) > 5 and word.startswith("<") and word.endswith(">"):
+            if len(word) >= 5 and word.startswith("<") and word.endswith(">"):
                 word_surface = the_font.render(word[2:-2], 0, special_symbol[word[1]])
             else:
                 word_surface = the_font.render(word, 0, color)
@@ -56,15 +57,18 @@ def battle_engine(level_back, enemy, player):
                 settings()
                 pygame.mixer.music.load("data/music/battle_theme.wav")
                 pygame.mixer.music.play(-1)
-    screen.blit(level_back, (0, 0))
-    screen.blit(draw_health_bar(enemy.life), (5, 5))
-    screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
-    all_sprites.update()
-    all_sprites.draw(screen)
-    shields.draw(screen)
-    information.draw(screen)
-    pygame.display.flip()
     if skip <= 0:
+        screen.blit(level_back, (0, 0))
+        screen.blit(draw_health_bar(max(enemy.life, 0)), (5, 5))
+        screen.blit(draw_health_bar(max(player.life, 0)), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        energy_bar = draw_health_bar(player.energy, player.energy_need, energy=True)
+        screen.blit(energy_bar, (LEFT_F_SPACE + FIELD_WIDTH - energy_bar.get_width() - 5,
+                                 TOP_F_SPACE + FIELD_HEIGHT + 5))
+        all_sprites.update()
+        all_sprites.draw(screen)
+        shields.draw(screen)
+        information.draw(screen)
+        pygame.display.flip()
         clock.tick(fps)
     else:
         skip -= 1
@@ -103,12 +107,22 @@ def blit_timed(surface, text, pos, width, the_font, level_back, enemy, player, c
         battle_engine(level_back, enemy, player)
 
 
-def draw_health_bar(health):
-    surf = pygame.Surface(((len(str(health)) + 1) * 30, 30))
+def draw_health_bar(*health, energy=False):
+    if not energy:
+        surf = pygame.Surface(((len(str(health[0])) + 1) * 30, 30))
+        surf.fill(BACKGROUND_COLOR)
+        surf.blit(nums[10], (0, 0))
+        for i in range(len(str(health[0]))):
+            surf.blit(nums[int(str(health[0])[i])], ((i + 1) * 30, 0))
+        return surf
+    surf = pygame.Surface(((len(str(health[0])) + len(str(health[1])) + 2) * 30, 30))
     surf.fill(BACKGROUND_COLOR)
-    surf.blit(nums[10], (0, 0))
-    for i in range(len(str(health))):
-        surf.blit(nums[int(str(health)[i])], ((i + 1) * 30, 0))
+    surf.blit(nums[11], (0, 0))
+    for i in range(len(str(health[0]))):
+        surf.blit(nums[int(str(health[0])[i])], ((i + 1) * 30, 0))
+    surf.blit(nums[12], ((len(str(health[0])) + 1) * 30, 0))
+    for i in range(len(str(health[1]))):
+        surf.blit(nums[int(str(health[1])[i])], ((len(str(health[0])) + i + 2) * 30, 0))
     return surf
 
 
@@ -160,7 +174,7 @@ class PauseButton(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, speed, max_life):
+    def __init__(self, speed, max_life, energy_need):
         super().__init__(characters, all_sprites)
         self.direction = "forward"
         self.move = "standing"
@@ -175,6 +189,8 @@ class Player(pygame.sprite.Sprite):
         self.life = max_life
         self.last_attack = 0
         self.invulnerable = 0
+        self.energy_need = energy_need
+        self.energy = 0
 
     def update(self, *args):
         self.last_attack += 1
@@ -257,7 +273,7 @@ class Player(pygame.sprite.Sprite):
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, max_life, open_time, image):
+    def __init__(self, max_life, open_time, image, player):
         super().__init__(characters, all_sprites)
         self.image = image
         self.open_time = open_time
@@ -266,12 +282,14 @@ class Enemy(pygame.sprite.Sprite):
         self.shield = True
         self.max_life = max_life
         self.life = max_life
+        self.player = player
 
     def update(self, *args):
         if not self.shield:
             for i in pygame.sprite.spritecollide(self, player_bullets, True):
                 pygame.mixer.Sound.play(sounds["enemy_hit"])
                 self.life = max(self.life - i.damage, 0)
+                self.player[0].energy = min(self.player[0].energy + 1, self.player[0].energy_need)
 
     def spawn(self, pos_x, pos_y):
         self.rect = self.image.get_rect()
@@ -321,13 +339,51 @@ def terminate():
     sys.exit()
 
 
+def ultra_move():
+    ultra_group = pygame.sprite.Group()
+    ultra = pygame.sprite.Sprite(ultra_group)
+    timer = 150
+    ultra.image = ultra_images[timer // 10 % len(ultra_images)]
+    ultra.rect = ultra.image.get_rect()
+    ultra.rect.x = LEFT_F_SPACE
+    ultra.rect.y = HEIGHT // 2 - ultra.image.get_height() // 2
+    while True:
+        ultra.image = ultra_images[timer // 10 % len(ultra_images)]
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                pause()
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
+                if 482 < event.pos[0] <= 542 and 354 < event.pos[1] <= 414:
+                    pause()
+                if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 70 < event.pos[1] <= 135:
+                    settings()
+                    pygame.mixer.music.load("data/music/battle_theme.wav")
+                    pygame.mixer.music.play(-1)
+        ultra_group.draw(screen)
+        pygame.display.flip()
+        if timer > 0:
+            timer -= 1
+            clock.tick(FPS)
+        else:
+            return
+
+
 def introduction():
     intro_now = 0
     while True:
         if intro_now >= len(introduction_images):
             start_level(0)
+        if lang == EN:
+            font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
+        else:
+            font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
         screen.fill(BACKGROUND_COLOR)
-        screen.blit(introduction_images[intro_now], (WIDTH // 2 - introduction_images[intro_now].get_width() // 2, 100))
+        screen.blit(introduction_images[intro_now],
+                    (WIDTH // 2 - introduction_images[intro_now].get_width() // 2, 50))
+        blit_text(screen, text_data[lang]["intro" + str(intro_now + 1)],
+                  (WIDTH // 2 - 400, 100 if intro_now != 0 else HEIGHT // 2 + 100), 800, font, BATTLE_TEXT)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
@@ -389,7 +445,34 @@ def level_draw(level):
     return image
 
 
+def enemy_say(what_say, level_back, enemy, player, sett, enemy_do, black_sq, timer, shield):
+    hp_text.add(str(enemy.life) + "hp")
+    for i in bullets:
+        i.kill()
+    if not enemy.shield:
+        timer = 0
+        enemy.shield = True
+        shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
+                        load_image("game_sprites/additional/shield.png"))
+    enemy_do.clear()
+    enemy_do = random.choice(enemy_moves[phase]).copy()
+
+    if lang == EN:
+        font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
+    else:
+        font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU_MINI)
+
+    enemy_do.append(Move("unshield", enemy.open_time))
+    enemy_do.append(Move("wait", 250))
+    blit_timed(black_sq.image, text_data[lang][what_say], (20, 100), 351, font,
+               level_back, enemy, player, BATTLE_TEXT, wait=5)
+    black_sq.image.fill(BLACK_SQ_COLOR)
+    black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
+    return black_sq, enemy_do, timer, shield
+
+
 def start_level(level):
+    global phase
     # level start
     pygame.mixer.music.load("data/music/battle_theme.wav")
     pygame.mixer.music.play(-1)
@@ -397,24 +480,24 @@ def start_level(level):
     level_back = level_draw(level)
     player = Player(*player_stats)
     player.spawn(*START_POINT)
-    enemy = Enemy(*enemies[0])
+    enemy = Enemy(*enemies[0], [player])
     enemy.spawn(*ENEMY_POINT)
     black_sq = pygame.sprite.Sprite(all_sprites, information)
     black_sq.image = pygame.Surface((471, 768))
-    black_sq.image.fill((30, 30, 30))
+    black_sq.image.fill(BLACK_SQ_COLOR)
     black_sq.rect = black_sq.image.get_rect()
     black_sq.rect.x = 553
     sett = load_image("game_sprites/additional/settings.png")
     black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
     timer = 0
     enemy_do = [Move("wait", 250)]
-    enemy_do.extend(random.choice(enemy_moves).copy())
-    enemy_do.append(Move("unshield", 250))
+    enemy_do.extend(random.choice(enemy_moves[phase]).copy())
+    enemy_do.append(Move("unshield", enemy.open_time))
     enemy_do.append(Move("wait", 250))
     shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                     load_image("game_sprites/additional/shield.png"))
     pause_btn = PauseButton()
-    save_inf = (player.life, enemy.life)
+    save_inf = (player.life, enemy.life, phase, enemy.open_time, player.energy)
     if lang == EN:
         font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN_MINI)
     else:
@@ -428,9 +511,14 @@ def start_level(level):
     pygame.display.flip()
     blit_timed(black_sq.image, text_data[lang]["tutorial"], (20, 100), 351, font,
                level_back, enemy, player, BATTLE_TEXT, wait=5)
+    black_sq.image.fill(BLACK_SQ_COLOR)
+    black_sq.image.blit(sett, (black_sq.image.get_width() - 65, 70))
     text = ""
+
     while True:
         if text == "sans":
+            hp_times.clear()
+            hp_text.add("first_damage_enemy")
             pygame.mixer.music.load("data/music/spider.mp3")
             pygame.mixer.music.play(-1)
             enemy.life = 50
@@ -449,6 +537,15 @@ def start_level(level):
                 text += "a"
             if event.type == pygame.KEYDOWN and event.key == pygame.K_n:
                 text += "n"
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_r:
+                if player.energy == player.energy_need:
+                    player.energy = 0
+                    ultra_move()
+                    pygame.mixer.Sound.play(sounds["ultra"])
+                    if enemy.shield:
+                        enemy.life -= 40
+                    else:
+                        enemy.life -= 80
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == pygame.BUTTON_LEFT:
                 if WIDTH - 65 < event.pos[0] <= WIDTH - 5 and 5 < event.pos[1] <= 65:
                     pause()
@@ -459,9 +556,9 @@ def start_level(level):
         if not level_run:
             return  # level ended
         if not enemy_do:
-            save_inf = (player.life, enemy.life)
-            enemy_do = random.choice(enemy_moves).copy()
-            enemy_do.append(Move("unshield", 250))
+            save_inf = (player.life, enemy.life, phase, enemy.open_time, player.energy)
+            enemy_do = random.choice(enemy_moves[phase]).copy()
+            enemy_do.append(Move("unshield", enemy.open_time))
             enemy_do.append(Move("wait", 250))
         if enemy_do[0].type == "wait":
             if timer < enemy_do[0].time:
@@ -487,20 +584,40 @@ def start_level(level):
                 enemy.shield = True
                 shield = Shield(enemy.rect.x + enemy.rect.width // 2 - 35, enemy.rect.y + enemy.rect.height // 2 - 30,
                                 load_image("game_sprites/additional/shield.png"))
+        if enemy.life in phases and phase != phases.index(enemy.life) + 1:
+            phase += 1
+            enemy.open_time -= 40
+        if enemy.life < enemy.max_life and "first_damage_enemy" not in hp_text:
+            hp_text.add("first_damage_enemy")
+            black_sq, enemy_do, timer, shield = enemy_say("first_damage_enemy", level_back, enemy, player,
+                                                          sett, enemy_do, black_sq, timer, shield)
+        if player.life < player.max_life and "first_damage" not in hp_text:
+            hp_text.add("first_damage")
+            black_sq, enemy_do, timer, shield = enemy_say("first_damage", level_back, enemy, player, sett,
+                                                          enemy_do, black_sq, timer, shield)
+        if hp_times and enemy.life <= max(hp_times):
+            saying = str(max(hp_times))
+            del hp_times[hp_times.index(max(hp_times))]
+            save_inf = (player.life, enemy.life, phase, enemy.open_time, player.energy)
+            black_sq, enemy_do, timer, shield = enemy_say(saying + "hp", level_back, enemy, player,
+                                                          sett, enemy_do, black_sq, timer, shield)
 
         if enemy.life <= 0:
             you_won()
         if player.life <= 0:
             you_lost()
-            player.life, enemy.life = save_inf
-            enemy_do = [Move("unshield", 250), Move("wait", 250)]
-            enemy_do.extend(random.choice(enemy_moves).copy())
-            enemy_do.append(Move("unshield", 250))
+            player.life, enemy.life, phase, enemy.open_time, player.energy = save_inf
+            enemy_do = [Move("wait", 250)]
+            enemy_do.extend(random.choice(enemy_moves[phase]).copy())
+            enemy_do.append(Move("unshield", enemy.open_time))
             enemy_do.append(Move("wait", 250))
 
         screen.blit(level_back, (0, 0))
-        screen.blit(draw_health_bar(enemy.life), (5, 5))
-        screen.blit(draw_health_bar(player.life), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        screen.blit(draw_health_bar(max(enemy.life, 0)), (5, 5))
+        screen.blit(draw_health_bar(max(player.life, 0)), (5, TOP_F_SPACE + FIELD_HEIGHT + 5))
+        energy_bar = draw_health_bar(player.energy, player.energy_need, energy=True)
+        screen.blit(energy_bar, (LEFT_F_SPACE + FIELD_WIDTH - energy_bar.get_width() - 5,
+                                 TOP_F_SPACE + FIELD_HEIGHT + 5))
         all_sprites.update()
         all_sprites.draw(screen)
         shields.draw(screen)
@@ -520,13 +637,13 @@ def you_won():
     while True:
         screen.fill(BACKGROUND_COLOR)
         screen.blit(art, (WIDTH // 2 - art.get_width() // 2, 100))
-        blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        blit_text(screen, text_data[lang]["you_won"], (WIDTH // 2 - 400, int(HEIGHT * 0.7)), 800, font, BATTLE_TEXT)
         text1 = pygame.Surface((100, 50))
         text1.fill(BACKGROUND_COLOR)
-        blit_text(text1, text_data[lang]["no_r"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
+        blit_text(text1, text_data[lang]["yes"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
         text2 = pygame.Surface((100, 50))
         text2.fill(BACKGROUND_COLOR)
-        blit_text(text2, text_data[lang]["yes_r"], (0, 0), text2.get_width(), font, BATTLE_TEXT)
+        blit_text(text2, text_data[lang]["no"], (0, 0), text2.get_width(), font, BATTLE_TEXT)
         screen.blit(text1, (WIDTH // 2 - 150, int(HEIGHT * 0.9)))
         screen.blit(text2, (WIDTH // 2 + 50, int(HEIGHT * 0.9)))
         for event in pygame.event.get():
@@ -550,13 +667,15 @@ def you_lost():
         i.kill()
     pygame.mixer.music.load("data/music/main_theme.wav")
     pygame.mixer.music.play(-1)
+    art = load_image("game_sprites/arts/lose2.png")
     if lang == EN:
         font = pygame.font.Font('data/fonts/english.ttf', FONT_SIZE_EN)
     else:
         font = pygame.font.Font('data/fonts/russian.ttf', FONT_SIZE_RU)
     while True:
         screen.fill(BACKGROUND_COLOR)
-        blit_text(screen, text_data[lang]["you_lost"], (WIDTH // 2 - 200, int(HEIGHT * 0.75)), 400, font, BATTLE_TEXT)
+        screen.blit(art, (WIDTH // 2 - art.get_width() // 2, 100))
+        blit_text(screen, text_data[lang]["you_lost"], (WIDTH // 2 - 400, int(HEIGHT * 0.7)), 800, font, BATTLE_TEXT)
         text1 = pygame.Surface((100, 50))
         text1.fill(BACKGROUND_COLOR)
         blit_text(text1, text_data[lang]["yes"], (0, 0), text1.get_width(), font, BATTLE_TEXT)
@@ -686,6 +805,7 @@ pygame.display.set_caption("MageVsMage")
 
 BACKGROUND_COLOR = (61, 61, 61)
 TEXT_COLOR = (10, 10, 10)
+BLACK_SQ_COLOR = (30, 30, 30)
 BATTLE_TEXT = (240, 240, 240)
 START_POINT = (260, 500)
 ENEMY_POINT = (260, 130)
@@ -702,39 +822,26 @@ special_symbol = {"@": (181, 6, 0),  # bloody color
                   "!": (235, 179, 57),  # golden
                   }
 
-text_data = [{"start": "Start game", "settings": "Settings", "exit": "Exit", "volume": "Music volume",
-              "sound": "Sound volume", "you_lost": "You <@lost.@> Try again?",
-              "you_won": "You <!won.!> But is it the <!end?!>", "yes": "<!Yes!>", "no": "<@No@>",
-              "yes_r": "<@Yes@>", "no_r": "<!No!>",
-
-              "tutorial": "<@Hahaha,@> you somehow forgot how to move? $ So pathetic. $\nThen I should tell you that" +
-                          " you move with <!WASD.!> $ Try it out, $ it shouldn't " +
-                          "be that hard even for someone like you. $" +
-                          "\nAs you are pretty stupid, $ I think I should also remind you that you can dash with "
-                          "<!space.!> $ This will help you not to get <@damage.@> $ " +
-                          "After all, $ I want this fight to be <@amusing.@> $ $\n\nAh, $ of course, $ don't forget " +
-                          "you can fight back with <!E.!> $ Thought that's pretty <@useless,@> $ don't you think?"},
-
-             {"start": "Начать игру", "settings": "Настройки", "exit": "Выход", "volume": "Громкость музыки",
-              "sound": "Громкость звука", "you_lost": "Вы <@проиграли.@> Попытаться вновь?",
-              "you_won": "Вы <!победили.!> Но достигли ли вы <!конца?!>", "yes": "<!Да!>", "no": "<@Нет@>",
-              "yes_r": "<@Да@>", "no_r": "<!Нет!>",
-
-              "tutorial": "<@Хахаха,@> ты как-то разучился двигаться? $ Такой жалкий. $" +
-                          "\nТогда я должен сказать, что ты можешь двигаться с помощью <!WASD.!> $ " +
-                          "Попробуй, $ это не должно быть так сложно даже для таких, как ты. $" +
-                          "\nПоскольку ты довольно глуп, $ я думаю, я также должен напомнить тебе, " +
-                          "что ты можешь делать рывки с помощью <!пробела.!> " +
-                          "$ Это поможет тебе не получать <@урон.@> $ " +
-                          "В конце концов, $ я хочу, чтобы этот бой был <@забавным.@> $ $" +
-                          "\n\nАх, $ конечно, $ не забывай, " +
-                          "ты можешь дать отпор с помощью <!E.!> $ Правда, это довольно <@бесполезно,@> $ не так ли?"
-              }]
+text_data = []
+with open("data/text/text_en.txt", "r", encoding="utf-8") as f:
+    data = f.read().strip().split("###")
+    temp = {}
+    for i in data:
+        temp[i.split(": ")[0].strip()] = i.split(": ")[1].strip()
+    text_data.append(temp)
+with open("data/text/text_ru.txt", "r", encoding="utf-8") as f:
+    data = f.read().strip().split("###")
+    temp = {}
+    for i in data:
+        temp[i.split(": ")[0].strip()] = i.split(": ")[1].strip()
+    text_data.append(temp)
 EN = 0
 RU = 1
 volume = 2
 sound = 2
 lang = EN
+
+hp_text = set()
 
 introduction_images = [load_image("game_sprites/arts/introduction1.png"), pygame.Surface((0, 0))]
 
@@ -751,10 +858,15 @@ player_bullets = pygame.sprite.Group()
 characters = pygame.sprite.Group()
 shields = pygame.sprite.Group()
 
+hp_times = [50, 100, 200, 300, 400, 500]
+
 sounds = {
     "enemy_hit": pygame.mixer.Sound("data/sounds/enemy_hit.wav"),
     "hit_sound": pygame.mixer.Sound("data/sounds/hit_sound.wav"),
-    "shield_crash": pygame.mixer.Sound("data/sounds/shield_crash.wav")}
+    "shield_crash": pygame.mixer.Sound("data/sounds/shield_crash.wav"),
+    "ultra": pygame.mixer.Sound("data/sounds/ultra.wav")}
+
+ultra_images = image_code.ultra_load()
 
 running = True
 
@@ -767,20 +879,68 @@ for i in sounds:
 player_image = player_image_load()
 nums = health_bar_load()
 
-player_stats = (3, 100)
-enemies = [(600, 500, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
-                                colorkey=(255, 255, 255)))]
+player_stats = (3, 100, 20)
+enemies = [(600, 250, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
+                                 colorkey=(255, 255, 255)))]
 
-enemy_moves = [[Move("wait", 5) if i % 2 == 1 else
-                Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
-                     random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
-                     -89, 0, random.randint(5, 8), 0, False, 10)
-                for i in range(120)], [Move("wait", 50) if i % 2 == 1 else
-                                       Move("area_attack", load_image("game_sprites/area/lazer_prep.png"),
-                                            load_image("game_sprites/area/lazer.png"), 0,
-                                            HEIGHT if i % 4 == 0 else -180,
-                                            0, -8 if i % 4 == 0 else 8, 120, 50, 10)
-                                       for i in range(10)]]
+phases = [400, 200]
+phase = 0
+
+enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
+                 Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
+                      random.randint(LEFT_F_SPACE, LEFT_F_SPACE + FIELD_WIDTH - 30),
+                      -89, 0, random.randint(5, 8), 0, False, 10)
+                 for i in range(120)], [Move("wait", 50) if i % 2 == 1 else
+                                        Move("area_attack", load_image("game_sprites/area/lazer_prep.png"),
+                                             load_image("game_sprites/area/lazer.png"), 0,
+                                             HEIGHT if i % 4 == 0 else -180,
+                                             0, -8 if i % 4 == 0 else 8, 120, 50, 10)
+                                        for i in range(10)]],
+               [[Move("wait", 3) if i % 2 == 1 else
+                 Move("bullet",
+                      load_image("game_sprites/bullets/blood_drop.png"),
+                      random.randint(LEFT_F_SPACE,
+                                     LEFT_F_SPACE + FIELD_WIDTH - 30),
+                      -89, 0, random.randint(7, 10), 0, False, 10)
+                 for i in range(170)],
+                [Move("wait", 40) if i % 2 == 1 else
+                 Move("area_attack",
+                      load_image("game_sprites/area/lazer_prep.png"),
+                      load_image("game_sprites/area/lazer.png"), 0,
+                      HEIGHT if i % 4 == 0 else -180,
+                      0, -10 if i % 4 == 0 else 10, 120, 40, 10)
+                 for i in range(12)], [Move("wait", 10) if i % 2 == 1 else
+                                       Move("bullet",
+                                            load_image("game_sprites/bullets/fire_ball.png"),
+                                            ENEMY_POINT[0], ENEMY_POINT[1],
+                                            random.choice([random.randint(-3, -1), random.randint(1, 3)]),
+                                            random.choice([random.randint(-3, -1), random.randint(1, 3)]), 3, True,
+                                            10)
+                                       for i in range(30)
+                                       ] + [Move("wait", 350)]],
+               [[Move("wait", 2) if i % 2 == 1 else
+                 Move("bullet",
+                      load_image("game_sprites/bullets/blood_drop.png"),
+                      random.randint(LEFT_F_SPACE,
+                                     LEFT_F_SPACE + FIELD_WIDTH - 30),
+                      -89, 0, random.randint(9, 12), 0, False, 10)
+                 for i in range(200)],
+                [Move("wait", 30) if i % 2 == 1 else
+                 Move("area_attack",
+                      load_image("game_sprites/area/lazer_prep.png"),
+                      load_image("game_sprites/area/lazer.png"), 0,
+                      HEIGHT if i % 4 == 0 else -180,
+                      0, -12 if i % 4 == 0 else 12, 120, 30, 10)
+                 for i in range(15)], [Move("wait", 8) if i % 2 == 1 else
+                                       Move("bullet",
+                                            load_image("game_sprites/bullets/fire_ball.png"),
+                                            ENEMY_POINT[0], ENEMY_POINT[1],
+                                            random.choice([random.randint(-5, -2), random.randint(2, 5)]),
+                                            random.choice([random.randint(-5, -2), random.randint(2, 5)]), 3, True,
+                                            10)
+                                       for i in range(40)
+                                       ] + [Move("wait", 350)]]
+               ]
 
 start_screen()
 
