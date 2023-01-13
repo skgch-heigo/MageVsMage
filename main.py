@@ -445,7 +445,7 @@ def level_draw(level):
     return image
 
 
-def enemy_say(what_say, level_back, enemy, player, sett, enemy_do, black_sq, timer, shield):
+def enemy_say(what_say, level_back, enemy, player, sett, enemy_do, black_sq, timer, shield, phase):
     hp_text.add(str(enemy.life) + "hp")
     for i in bullets:
         i.kill()
@@ -472,7 +472,13 @@ def enemy_say(what_say, level_back, enemy, player, sett, enemy_do, black_sq, tim
 
 
 def start_level(level):
-    global phase
+    global hp_times, hp_text
+    phases = [400, 200]
+    phase = 0
+
+    hp_times = [50, 100, 200, 300, 400, 500]
+    hp_text = set()
+
     # level start
     pygame.mixer.music.load("data/music/battle_theme.wav")
     pygame.mixer.music.play(-1)
@@ -590,17 +596,17 @@ def start_level(level):
         if enemy.life < enemy.max_life and "first_damage_enemy" not in hp_text:
             hp_text.add("first_damage_enemy")
             black_sq, enemy_do, timer, shield = enemy_say("first_damage_enemy", level_back, enemy, player,
-                                                          sett, enemy_do, black_sq, timer, shield)
+                                                          sett, enemy_do, black_sq, timer, shield, phase)
         if player.life < player.max_life and "first_damage" not in hp_text:
             hp_text.add("first_damage")
             black_sq, enemy_do, timer, shield = enemy_say("first_damage", level_back, enemy, player, sett,
-                                                          enemy_do, black_sq, timer, shield)
+                                                          enemy_do, black_sq, timer, shield, phase)
         if hp_times and enemy.life <= max(hp_times):
             saying = str(max(hp_times))
             del hp_times[hp_times.index(max(hp_times))]
             save_inf = (player.life, enemy.life, phase, enemy.open_time, player.energy)
             black_sq, enemy_do, timer, shield = enemy_say(saying + "hp", level_back, enemy, player,
-                                                          sett, enemy_do, black_sq, timer, shield)
+                                                          sett, enemy_do, black_sq, timer, shield, phase)
 
         if enemy.life <= 0:
             you_won()
@@ -841,7 +847,6 @@ volume = 2
 sound = 2
 lang = EN
 
-hp_text = set()
 
 introduction_images = [load_image("game_sprites/arts/introduction1.png"), pygame.Surface((0, 0))]
 
@@ -859,6 +864,7 @@ characters = pygame.sprite.Group()
 shields = pygame.sprite.Group()
 
 hp_times = [50, 100, 200, 300, 400, 500]
+hp_text = set()
 
 sounds = {
     "enemy_hit": pygame.mixer.Sound("data/sounds/enemy_hit.wav"),
@@ -882,9 +888,6 @@ nums = health_bar_load()
 player_stats = (3, 100, 20)
 enemies = [(600, 250, load_image("game_sprites/sprites_Atanim/standing_forward1.png",
                                  colorkey=(255, 255, 255)))]
-
-phases = [400, 200]
-phase = 0
 
 enemy_moves = [[[Move("wait", 5) if i % 2 == 1 else
                  Move("bullet", load_image("game_sprites/bullets/blood_drop.png"),
